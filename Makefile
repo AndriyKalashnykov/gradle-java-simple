@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 SHELL := /bin/bash
-SDKMAN := ~/.sdkman/bin/sdkman-init.sh
+SDKMAN := $(HOME)/.sdkman/bin/sdkman-init.sh
 CURRENT_USER_NAME := $(shell whoami)
 
 JAVA_VER  := 21-tem
@@ -22,13 +22,13 @@ help:
 
 build-deps-check:
 	@. $(SDKMAN)
+ifndef SDKMAN_DIR
+	@curl -s "https://get.sdkman.io?rcupdate=false" | bash
+	@source $(SDKMAN)
 	ifndef SDKMAN_DIR
-		@curl -s "https://get.sdkman.io?rcupdate=false" | bash
-		@source $(SDKMAN)
-		ifndef SDKMAN_DIR
-			SDKMAN_EXISTS := @echo "SDKMAN_VERSION is undefined" && exit 1
-		endif
+		SDKMAN_EXISTS := @echo "SDKMAN_VERSION is undefined" && exit 1
 	endif
+endif
 
 	@. $(SDKMAN) && echo N | sdk install java $(JAVA_VER) && sdk use java $(JAVA_VER)
 	@. $(SDKMAN) && echo N | sdk install gradle $(GRADLE_VER) && sdk use gradle $(GRADLE_VER)
@@ -45,7 +45,7 @@ check-env: build-deps-check
 	@printf "\n"
 
 #cve-check-dep: @ Dependency Check Analysis and a Custom Security Scan task
-cve-check-dep: check-env
+cve-check-dep:
 	@ ./gradlew clean  :app:dependencyCheckAnalyze :app:securityScan --no-configuration-cache --warning-mode all
 
 #cve-db-update @ Update vulnerability database manually
@@ -57,15 +57,15 @@ cve-db-purge:
 	@ ./gradlew dependencyCheckPurge
 
 #test: @ Test project
-test: check-env build
+test: build
 	@ ./gradlew clean test
 
 #build: @ Build project
-build: check-env
+build:
 	@ ./gradlew clean build
 
 #run: @ Run project
-run: check-env test
+run: test
 	@ ./gradlew clean :app:run --no-configuration-cache --warning-mode all
 
 stop-gradle:

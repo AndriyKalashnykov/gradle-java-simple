@@ -22,6 +22,11 @@
 
 ## Usage
 
+Check pre-reqs:
+```bash
+make check-env
+```
+
 Check for vulnerabilities:
 ```bash
 make cve-check-dep
