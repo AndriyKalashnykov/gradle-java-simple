@@ -22,13 +22,13 @@ help:
 
 build-deps-check:
 	@. $(SDKMAN)
-ifndef SDKMAN_DIR
-	@curl -s "https://get.sdkman.io?rcupdate=false" | bash
-	@source $(SDKMAN)
 	ifndef SDKMAN_DIR
-		SDKMAN_EXISTS := @echo "SDKMAN_VERSION is undefined" && exit 1
+		@curl -s "https://get.sdkman.io?rcupdate=false" | bash
+		@source $(SDKMAN)
+		ifndef SDKMAN_DIR
+			SDKMAN_EXISTS := @echo "SDKMAN_VERSION is undefined" && exit 1
+		endif
 	endif
-endif
 
 	@. $(SDKMAN) && echo N | sdk install java $(JAVA_VER) && sdk use java $(JAVA_VER)
 	@. $(SDKMAN) && echo N | sdk install gradle $(GRADLE_VER) && sdk use gradle $(GRADLE_VER)
