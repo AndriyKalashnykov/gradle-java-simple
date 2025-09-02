@@ -1,6 +1,88 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ]
+    "config:best-practices",
+    ":approveMajorUpdates",
+    ":label(dependencies)",
+    ":semanticCommitType(chore)",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    ":dependencyDashboard",
+    "schedule:daily",
+    ":automergePatch",
+    ":automergePr",
+    ":automergeRequireAllStatusChecks",
+    ":prConcurrentLimitNone",
+    ":separatePatchReleases"
+  ],
+  "enabledManagers": [
+    "maven",
+    "gradle",
+    "github-actions"
+  ],
+  "prConcurrentLimit": 2,
+  "platformAutomerge": true,
+  "commitMessagePrefix": "chore(all): ",
+  "commitMessageAction": "update",
+  "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
+  "packageRules": [
+    {
+      "description": "Automerge non-major updates",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true,
+      "matchCategories": [
+        "java"
+      ],
+      "addLabels": [
+        "lang: java"
+      ]
+    },
+    {
+      "groupName": "Apache commons",
+      "description": "All apache commons grouped into one PR",
+      "matchPackageNames": [
+        "commons-io:commons-io",
+        "org.apache.commons:*"
+      ]
+    },
+    {
+      "groupName": "annotations",
+      "matchPackageNames": [
+        "com.google.errorprone:*",
+        "net.jcip:jcip-annotations",
+        "org.checkerframework:checker-qual",
+        "org.jetbrains:annotations",
+        "org.jspecify:jspecify"
+      ]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "extends": [
+        "schedule:daily"
+      ],
+      "automerge": true
+    }
+  ],
+  "labels": [
+    "automerge",
+    "dependencies"
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardLabels": [
+    "type: process"
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "type:security"
+    ],
+    "minimumReleaseAge": null
+  }
 }
