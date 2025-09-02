@@ -1,0 +1,23 @@
+.DS_Store
+**/bin/
+
+# Ignore Gradle build output directory
+build
+app/build
+.gradle
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+scripts/out/
+**/secrets/
+
+### VS Code ###
+.project
+.settings
+
+
+

@@ -1,0 +1,14 @@
+pluginManagement {
+    plugins {
+        id "org.owasp.dependencycheck" version "${dependencyCheckVersion}"
+    }
+}
+
+plugins {
+    // Apply the foojay-resolver plugin to allow automatic download of JDKs
+    id 'org.gradle.toolchains.foojay-resolver-convention' version "${foojayVersion}"
+}
+
+rootProject.name = 'gradle-java-simple'
+
+include('app')
