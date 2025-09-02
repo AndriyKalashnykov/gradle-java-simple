@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 SHELL := /bin/bash
-SDKMAN := $(HOME)/.sdkman/bin/sdkman-init.sh
+SDKMAN := ~/.sdkman/bin/sdkman-init.sh
 CURRENT_USER_NAME := $(shell whoami)
 
 JAVA_VER  := 21-tem
