@@ -69,7 +69,7 @@ j-generate: build
 j-check: j-generate
 	@ ./gradlew jacocoTestCoverageVerification
 
-#j-open: @ Open Jacoco report
+#j-open: @ Open code coverage report
 j-open:
 	@ xdg-open ./app/build/reports/jacoco/test/html/index.html
 

@@ -58,7 +58,7 @@ cve-dep-check - Dependency Check Analysis and a Custom Security Scan task
 test          - Test project
 j-generate    - Run tests with coverage report
 j-check       - Verify code coverage meets minimum threshold ( > 60%)
-j-open        - Open Jacoco report
+j-open        - Open code coverage report
 build         - Build project
 run           - Run project
 ```
