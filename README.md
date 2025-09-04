@@ -30,7 +30,7 @@ Check pre-reqs:
 make check-env
 ```
 
-Check for vulnerabilities:
+Run dependencies check - publicly disclosed vulnerabilities in application dependencies:
 ```bash
 make cve-dep-check
 ```
