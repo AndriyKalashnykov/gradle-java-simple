@@ -45,11 +45,14 @@ jobs:
     - run: |
         source ~/.sdkman/bin/sdkman-init.sh
 
-    - name: Test Gradle build
-      run: make build
+    - name: Build
+      run: make clean build
 
-    - name: Verify code coverage meets minimum threshold ( > 60%)
-      run: make j-generate j-check
+    - name: Test
+      run: make clean test
 
-    - name: Execute Gradle build
+    - name: Verify code coverage meets minimum threshold ( > 70%)
+      run: make coverage-generate coverage-check
+
+    - name: Run
       run: make run
