@@ -32,7 +32,7 @@ make check-env
 
 Check for vulnerabilities:
 ```bash
-make cve-check-dep
+make cve-dep-check
 ```
 
 Run:
@@ -44,4 +44,21 @@ make run
 
 ```bash
 make help
+```
+
+```text
+Usage: make COMMAND
+
+Commands :
+
+help          - List available tasks
+clean         - Cleanup
+check-env     - Check environment variables and installed tools
+cve-dep-check - Dependency Check Analysis and a Custom Security Scan task
+test          - Test project
+j-generate    - Run tests with coverage report
+j-check       - Verify code coverage meets minimum threshold ( > 60%)
+j-open        - Open Jacoco report
+build         - Build project
+run           - Run project
 ```

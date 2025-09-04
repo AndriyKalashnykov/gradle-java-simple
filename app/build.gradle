@@ -9,6 +9,7 @@ plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     id 'application'
     id 'org.owasp.dependencycheck'
+    id 'jacoco'
 }
 
 group = "${appArtefactGroup}"
@@ -57,15 +58,15 @@ tasks.named('test', Test) {
     }
 }
 
-tasks.withType(JavaExec) {
-    jvmArgs += '--add-modules'
-    jvmArgs += 'jdk.incubator.vector'
-}
-
-tasks.withType(Test) {
-    jvmArgs += '--add-modules'
-    jvmArgs += 'jdk.incubator.vector'
-}
+//tasks.withType(JavaExec) {
+//    jvmArgs += '--add-modules'
+//    jvmArgs += 'jdk.incubator.vector'
+//}
+//
+//tasks.withType(Test) {
+//    jvmArgs += '--add-modules'
+//    jvmArgs += 'jdk.incubator.vector'
+//}
 
 // OWASP Dependency-Check configuration
 dependencyCheck {
@@ -117,5 +118,50 @@ tasks.register('securityScan') {
 
     doLast {
         println "Security scan complete. Check reports in: ${layout.buildDirectory.get()}/reports/dependency-check"
+    }
+}
+
+test {
+    finalizedBy jacocoTestReport // report is always generated after tests run
+}
+
+jacocoTestReport {
+    dependsOn test // tests are required to run before generating the report
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    // Exclude main class from coverage if needed
+                    // '**/App.class'
+            ])
+        }))
+    }
+}
+
+// JaCoCo coverage verification
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.60 // 60% minimum coverage
+            }
+        }
+    }
+}
+
+// Optional: Create a task that runs tests and generates coverage report
+tasks.register('testCoverage') {
+    group = 'verification'
+    description = 'Runs tests and generates coverage report'
+    dependsOn 'test'
+    finalizedBy 'jacocoTestReport'
+
+    doLast {
+        println "Coverage report generated at: ${layout.buildDirectory.get()}/reports/jacoco/test/html/index.html"
     }
 }

@@ -4,11 +4,175 @@
 package org.example;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.List;
 
 class AppTest {
-    @Test void appHasAGreeting() {
+
+    private App app;
+
+    @BeforeEach
+    void setUp() {
+        app = new App();
+    }
+
+    @Test
+    @DisplayName("App should have a greeting")
+    void appHasAGreeting() {
         App classUnderTest = new App();
         assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+        assertEquals("HELLO WORLD!", classUnderTest.getGreeting());
+    }
+
+    @Test
+    @DisplayName("Default constructor should set default name")
+    void defaultConstructorSetsDefaultName() {
+        App defaultApp = new App();
+        assertEquals("DefaultApp", defaultApp.getName());
+    }
+
+    @Test
+    @DisplayName("Constructor with name should set the provided name")
+    void constructorWithNameSetsName() {
+        App namedApp = new App("TestApp");
+        assertEquals("TestApp", namedApp.getName());
+    }
+
+    @Test
+    @DisplayName("Personal greeting should work with valid name")
+    void personalGreetingWithValidName() {
+        String result = app.getPersonalGreeting("John");
+        assertEquals("HELLO JOHN!", result);
+    }
+
+    @Test
+    @DisplayName("Personal greeting should fallback to default greeting with blank name")
+    void personalGreetingWithBlankName() {
+        String result1 = app.getPersonalGreeting("");
+        String result2 = app.getPersonalGreeting(null);
+        String result3 = app.getPersonalGreeting("   ");
+
+        assertEquals("HELLO WORLD!", result1);
+        assertEquals("HELLO WORLD!", result2);
+        assertEquals("HELLO WORLD!", result3);
+    }
+
+    @Test
+    @DisplayName("Set name should handle valid and invalid names")
+    void setNameHandlesValidAndInvalidNames() {
+        app.setName("ValidName");
+        assertEquals("ValidName", app.getName());
+
+        app.setName("");
+        assertEquals("DefaultApp", app.getName());
+
+        app.setName(null);
+        assertEquals("DefaultApp", app.getName());
+
+        app.setName("   ");
+        assertEquals("DefaultApp", app.getName());
+    }
+
+    @Test
+    @DisplayName("Adding messages should work correctly")
+    void addingMessagesWorksCorrectly() {
+        assertEquals(0, app.getMessageCount());
+        assertFalse(app.hasMessages());
+
+        app.addMessage("First message");
+        assertEquals(1, app.getMessageCount());
+        assertTrue(app.hasMessages());
+
+        app.addMessage("Second message");
+        assertEquals(2, app.getMessageCount());
+
+        // Adding blank message should not increase count
+        app.addMessage("");
+        app.addMessage(null);
+        app.addMessage("   ");
+        assertEquals(2, app.getMessageCount());
+    }
+
+    @Test
+    @DisplayName("Getting messages should return copy of list")
+    void getMessagesReturnsCopyOfList() {
+        app.addMessage("Test message");
+        List<String> messages = app.getMessages();
+
+        // Modify the returned list should not affect the original
+        messages.add("Added externally");
+        assertEquals(1, app.getMessageCount());
+
+        List<String> originalMessages = app.getMessages();
+        assertEquals(1, originalMessages.size());
+        assertEquals("Test message", originalMessages.get(0));
+    }
+
+    @Test
+    @DisplayName("Clear messages should empty the message list")
+    void clearMessagesEmptiesList() {
+        app.addMessage("Message 1");
+        app.addMessage("Message 2");
+        assertEquals(2, app.getMessageCount());
+
+        app.clearMessages();
+        assertEquals(0, app.getMessageCount());
+        assertFalse(app.hasMessages());
+    }
+
+    @Test
+    @DisplayName("Get messages as string should format correctly")
+    void getMessagesAsStringFormatsCorrectly() {
+        assertEquals("No messages", app.getMessagesAsString());
+
+        app.addMessage("First");
+        assertEquals("First", app.getMessagesAsString());
+
+        app.addMessage("Second");
+        assertEquals("First, Second", app.getMessagesAsString());
+    }
+
+    @Test
+    @DisplayName("Is valid name should validate names correctly")
+    void isValidNameValidatesCorrectly() {
+        assertTrue(app.isValidName("ValidName"));
+        assertTrue(app.isValidName("A"));
+        assertTrue(app.isValidName("  Valid  "));
+
+        assertFalse(app.isValidName(""));
+        assertFalse(app.isValidName(null));
+        assertFalse(app.isValidName("   "));
+    }
+
+    @Test
+    @DisplayName("Format message should handle uppercase flag")
+    void formatMessageHandlesUppercaseFlag() {
+        assertEquals("TEST MESSAGE", app.formatMessage("test message", true));
+        assertEquals("test message", app.formatMessage("test message", false));
+        assertEquals("", app.formatMessage("", true));
+        assertEquals("", app.formatMessage(null, false));
+        assertEquals("", app.formatMessage("   ", true));
+    }
+
+    @Test
+    @DisplayName("Integration test for main workflow")
+    void integrationTestForMainWorkflow() {
+        App testApp = new App("IntegrationTest");
+
+        // Test the main workflow
+        assertEquals("IntegrationTest", testApp.getName());
+        assertEquals("HELLO WORLD!", testApp.getGreeting());
+
+        testApp.addMessage("Welcome message");
+        testApp.addMessage("Status update");
+
+        assertEquals(2, testApp.getMessageCount());
+        assertTrue(testApp.hasMessages());
+        assertEquals("Welcome message, Status update", testApp.getMessagesAsString());
+
+        String personalGreeting = testApp.getPersonalGreeting("User");
+        assertEquals("HELLO USER!", personalGreeting);
     }
 }

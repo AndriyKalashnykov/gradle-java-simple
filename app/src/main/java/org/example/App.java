@@ -3,17 +3,95 @@
  */
 package org.example;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.ArrayList;
 import org.apache.commons.lang3.StringUtils;
-
+import com.google.common.collect.Lists;
 
 public class App {
+
+    private String name;
+    private List<String> messages;
+
+    public App() {
+        this.name = "DefaultApp";
+        this.messages = new ArrayList<>();
+    }
+
+    public App(String name) {
+        this.name = name;
+        this.messages = new ArrayList<>();
+    }
 
     public String getGreeting() {
         return StringUtils.upperCase("Hello World!", Locale.ENGLISH);
     }
 
+    public String getPersonalGreeting(String personName) {
+        if (StringUtils.isBlank(personName)) {
+            return getGreeting();
+        }
+        return StringUtils.upperCase("Hello " + personName + "!", Locale.ENGLISH);
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public void setName(String name) {
+        this.name = StringUtils.isBlank(name) ? "DefaultApp" : name;
+    }
+
+    public void addMessage(String message) {
+        if (!StringUtils.isBlank(message)) {
+            this.messages.add(message);
+        }
+    }
+
+    public List<String> getMessages() {
+        return Lists.newArrayList(this.messages);
+    }
+
+    public void clearMessages() {
+        this.messages.clear();
+    }
+
+    public int getMessageCount() {
+        return this.messages.size();
+    }
+
+    public boolean hasMessages() {
+        return !this.messages.isEmpty();
+    }
+
+    public String getMessagesAsString() {
+        if (this.messages.isEmpty()) {
+            return "No messages";
+        }
+        return String.join(", ", this.messages);
+    }
+
+    public boolean isValidName(String name) {
+        return !StringUtils.isBlank(name) && name.trim().length() > 0;
+    }
+
+    public String formatMessage(String message, boolean uppercase) {
+        if (StringUtils.isBlank(message)) {
+            return "";
+        }
+        return uppercase ? StringUtils.upperCase(message, Locale.ENGLISH) : message;
+    }
+
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        App app = new App("MainApp");
+        System.out.println(app.getGreeting());
+
+        if (args.length > 0) {
+            System.out.println(app.getPersonalGreeting(args[0]));
+        }
+
+        app.addMessage("Welcome to the application!");
+        System.out.println("Messages: " + app.getMessagesAsString());
     }
 }

@@ -48,5 +48,8 @@ jobs:
     - name: Test Gradle build
       run: make build
 
+    - name: Verify code coverage meets minimum threshold ( > 60%)
+      run: make j-generate j-check
+
     - name: Execute Gradle build
       run: make run
