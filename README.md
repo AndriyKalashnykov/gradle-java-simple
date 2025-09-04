@@ -30,9 +30,9 @@ Check pre-reqs:
 make check-env
 ```
 
-Run dependencies check - publicly disclosed vulnerabilities in application dependencies:
+Run dependencies check for publicly disclosed vulnerabilities in application dependencies:
 ```bash
-make cve-dep-check
+make cve-check
 ```
 
 Run:
@@ -51,14 +51,14 @@ Usage: make COMMAND
 
 Commands :
 
-help          - List available tasks
-clean         - Cleanup
-check-env     - Check installed tools
-cve-dep-check - Dependency Check Analysis and a Custom Security Scan task
-test          - Test project
-j-generate    - Run tests with coverage report
-j-check       - Verify code coverage meets minimum threshold ( > 60%)
-j-open        - Open code coverage report
-build         - Build project
-run           - Run project
+help              - List available tasks
+clean             - Cleanup
+check-env         - Check installed tools
+cve-check         - Run dependencies check for publicly disclosed vulnerabilities in application dependencies
+test              - Test project
+coverage-generate - Run tests with coverage report
+coverage-check    - Verify code coverage meets minimum threshold ( > 60%)
+coverage-open     - Open code coverage report
+build             - Build project
+run               - Run project
 ```

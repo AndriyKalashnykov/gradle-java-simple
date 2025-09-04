@@ -18,7 +18,7 @@ help:
 	@echo
 	@echo "Commands :"
 	@echo
-	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST)| tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-13s\033[0m - %s\n", $$1, $$2}'
+	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST)| tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-17s\033[0m - %s\n", $$1, $$2}'
 
 build-deps-check:
 	@. $(SDKMAN)
@@ -44,8 +44,8 @@ check-env: build-deps-check
 	$(SDKMAN_EXISTS)
 	@printf "\n"
 
-#cve-dep-check: @ Dependency Check Analysis and a Custom Security Scan task
-cve-dep-check:
+#cve-check: @ Run dependencies check for publicly disclosed vulnerabilities in application dependencies
+cve-check:
 	@ ./gradlew clean  :app:dependencyCheckAnalyze :app:securityScan --no-configuration-cache --warning-mode all
 
 #cve-db-update @ Update vulnerability database manually
@@ -60,17 +60,17 @@ cve-db-purge:
 test: build
 	@ ./gradlew clean test
 
-#j-generate: @ Run tests with coverage report
-j-generate: build
+#coverage-generate: @ Run tests with coverage report
+coverage-generate: build
 	@ ./gradlew clean test jacocoTestReport
 	@echo "Coverage report available at: ./app/build/reports/jacoco/test/html/index.html"
 
-#j-check: @ Verify code coverage meets minimum threshold ( > 60%)
-j-check: j-generate
+#coverage-check: @ Verify code coverage meets minimum threshold ( > 60%)
+coverage-check: coverage-generate
 	@ ./gradlew jacocoTestCoverageVerification
 
-#j-open: @ Open code coverage report
-j-open:
+#coverage-open: @ Open code coverage report
+coverage-open:
 	@ xdg-open ./app/build/reports/jacoco/test/html/index.html
 
 #build: @ Build project
