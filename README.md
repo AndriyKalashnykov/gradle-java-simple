@@ -7,7 +7,7 @@
 
 - [sdkman](https://sdkman.io/install)
 
-  Install and use JDK 21
+  Install and use JDK
 
     ```bash
     sdk install java 21-tem
@@ -15,7 +15,7 @@
     ```
 - [gradle](https://docs.gradle.org/current/userguide/installation.html)
 
-  Install Gradle 9.0.0
+  Install Gradle
 
     ```bash
     sdk install gradle 9.0.0
