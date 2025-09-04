@@ -37,7 +37,7 @@ endif
 clean:
 	@ ./gradlew clean && rm -rf .gradle build app/build
 
-#check-env: @ Check environment variables and installed tools
+#check-env: @ Check installed tools
 check-env: build-deps-check
 
 	@printf "\xE2\x9C\x94 "

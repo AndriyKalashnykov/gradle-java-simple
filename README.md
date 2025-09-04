@@ -53,7 +53,7 @@ Commands :
 
 help          - List available tasks
 clean         - Cleanup
-check-env     - Check environment variables and installed tools
+check-env     - Check installed tools
 cve-dep-check - Dependency Check Analysis and a Custom Security Scan task
 test          - Test project
 j-generate    - Run tests with coverage report
