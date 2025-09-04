@@ -1,3 +1,6 @@
+[![test](https://github.com/AndriyKalashnykov/gradle-maven-simple/actions/workflows/ci.yml/badge.svg)](https://github.com/AndriyKalashnykov/gradle-maven-simple/actions/workflows/ci.yml)
+[![Hits](https://hits.sh/github.com/AndriyKalashnykov/gradle-maven-simple.svg?view=today-total&style=plastic)](https://hits.sh/github.com/AndriyKalashnykov/gradle-maven-simple/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 # Gradle based Java project for general purpose testing 
 
 ## Pre-requisites
@@ -10,7 +13,7 @@
     sdk install java 21-tem
     sdk use java 21-tem
     ```
-- [Apache Maven](https://maven.apache.org/install.html)
+- [gradle](https://docs.gradle.org/current/userguide/installation.html)
 
   Install Gradle 9.0.0
 
