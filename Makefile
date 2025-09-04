@@ -33,16 +33,28 @@ endif
 	@. $(SDKMAN) && echo N | sdk install java $(JAVA_VER) && sdk use java $(JAVA_VER)
 	@. $(SDKMAN) && echo N | sdk install gradle $(GRADLE_VER) && sdk use gradle $(GRADLE_VER)
 
-#clean: @ Cleanup
-clean:
-	@ ./gradlew clean && rm -rf .gradle build app/build
-
 #check-env: @ Check installed tools
 check-env: build-deps-check
 
 	@printf "\xE2\x9C\x94 "
 	$(SDKMAN_EXISTS)
 	@printf "\n"
+
+#clean: @ Cleanup
+clean:
+	@ ./gradlew clean && rm -rf .gradle build app/build
+
+#test: @ Run project tests
+test: build
+	@ ./gradlew clean test
+
+#build: @ Build project
+build:
+	@ ./gradlew clean build
+
+#run: @ Run project
+run: test
+	@ ./gradlew clean :app:run --no-configuration-cache --warning-mode all
 
 #cve-check: @ Run dependencies check for publicly disclosed vulnerabilities in application dependencies
 cve-check:
@@ -56,30 +68,18 @@ cve-db-update:
 cve-db-purge:
 	@ ./gradlew dependencyCheckPurge
 
-#test: @ Test project
-test: build
-	@ ./gradlew clean test
-
 #coverage-generate: @ Run tests with coverage report
 coverage-generate: build
 	@ ./gradlew clean test jacocoTestReport
 	@echo "Coverage report available at: ./app/build/reports/jacoco/test/html/index.html"
 
-#coverage-check: @ Verify code coverage meets minimum threshold ( > 60%)
+#coverage-check: @ Verify code coverage meets minimum threshold ( > 70%)
 coverage-check: coverage-generate
 	@ ./gradlew jacocoTestCoverageVerification
 
 #coverage-open: @ Open code coverage report
 coverage-open:
 	@ xdg-open ./app/build/reports/jacoco/test/html/index.html
-
-#build: @ Build project
-build:
-	@ ./gradlew clean build
-
-#run: @ Run project
-run: test
-	@ ./gradlew clean :app:run --no-configuration-cache --warning-mode all
 
 stop-gradle:
 	@ ./gradlew --stop
