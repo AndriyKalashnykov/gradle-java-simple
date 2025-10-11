@@ -8,81 +8,63 @@
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
-    "schedule:daily",
     ":automergePatch",
     ":automergePr",
     ":automergeRequireAllStatusChecks",
     ":prConcurrentLimitNone",
-    ":separatePatchReleases"
+    ":separatePatchReleases",
+    "replacements:all",
+    "workarounds:all"
   ],
-  "enabledManagers": [
-    "maven",
-    "gradle",
-    "github-actions"
+  "postUpdateOptions": [
+    "gomodTidy"
   ],
-  "prConcurrentLimit": 2,
-  "platformAutomerge": true,
   "commitMessagePrefix": "chore(all): ",
   "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
+  "platformAutomerge": true,
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
+  "groupName": "all",
+  "labels": [
+    "dependencies"
+  ],
   "packageRules": [
+    {
+      "description": "Automerge major updates",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
     {
       "description": "Automerge non-major updates",
       "matchUpdateTypes": [
         "minor",
-        "patch"
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "internal",
+        "devDependencies",
+        "ref",
+        "none",
+        "security",
+        "grop",
+        "unpin"
       ],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": true,
-      "matchCategories": [
-        "java"
-      ],
-      "addLabels": [
-        "lang: java"
-      ]
+      "platformAutomerge": true
     },
     {
-      "groupName": "Apache commons",
-      "description": "All apache commons grouped into one PR",
-      "matchPackageNames": [
-        "commons-io:commons-io",
-        "org.apache.commons:*"
-      ]
-    },
-    {
-      "groupName": "annotations",
-      "matchPackageNames": [
-        "com.google.errorprone:*",
-        "net.jcip:jcip-annotations",
-        "org.checkerframework:checker-qual",
-        "org.jetbrains:annotations",
-        "org.jspecify:jspecify"
-      ]
-    },
-    {
-      "groupName": "GitHub Actions",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "extends": [
-        "schedule:daily"
-      ],
-      "automerge": true
+      "description": "Automerge github-actions updates",
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
     }
-  ],
-  "labels": [
-    "automerge",
-    "dependencies"
-  ],
-  "dependencyDashboard": true,
-  "dependencyDashboardLabels": [
-    "type: process"
-  ],
-  "vulnerabilityAlerts": {
-    "labels": [
-      "type:security"
-    ],
-    "minimumReleaseAge": null
-  }
+  ]
 }
