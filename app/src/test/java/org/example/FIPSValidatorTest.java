@@ -56,7 +56,7 @@ class FIPSValidatorTest {
         PrintStream originalOut = System.out;
 
         try {
-            //System.setOut(new PrintStream(outputStream));
+            System.setOut(new PrintStream(outputStream));
             fipsValidator.printFIPSProviders();
 
             String output = outputStream.toString();
