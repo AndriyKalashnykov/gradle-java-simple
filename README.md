@@ -59,7 +59,7 @@ build             - Build project
 run               - Run project
 cve-check         - Run dependencies check for publicly disclosed vulnerabilities in application dependencies
 coverage-generate - Run tests with coverage report
-coverage-check    - Verify code coverage meets minimum threshold ( > 70%)
+coverage-check    - Verify code coverage meets minimum threshold ( > 60%)
 coverage-open     - Open code coverage report
 ```
 
