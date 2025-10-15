@@ -130,7 +130,7 @@ coverage-generate: build
 	@ ./gradlew clean test jacocoTestReport
 	@echo "Coverage report available at: ./app/build/reports/jacoco/test/html/index.html"
 
-#coverage-check: @ Verify code coverage meets minimum threshold ( > 70%)
+#coverage-check: @ Verify code coverage meets minimum threshold ( > 60%)
 coverage-check: coverage-generate
 	@ ./gradlew jacocoTestCoverageVerification
 
