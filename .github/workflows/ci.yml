@@ -51,7 +51,7 @@ jobs:
     - name: Test
       run: make clean test
 
-    - name: Verify code coverage meets minimum threshold ( > 70%)
+    - name: Verify code coverage meets minimum threshold ( > 60%)
       run: make coverage-generate coverage-check
 
     - name: Run
