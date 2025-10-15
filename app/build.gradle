@@ -46,6 +46,12 @@ java {
 application {
     // Define the main class for the application.
     mainClass = 'org.example.App'
+
+    // Configure JVM arguments for Semeru FIPS mode
+    applicationDefaultJvmArgs = [
+        '-Dsemeru.fips=true',
+        '-Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3'
+    ]
 }
 
 tasks.named('test', Test) {
@@ -53,8 +59,17 @@ tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = '1G'
 
+    // Configure JVM arguments for Semeru FIPS mode during tests
+    // Note: Only enable if FIPS profile is configured in java.security file
+    // jvmArgs '-Dsemeru.fips=true', '-Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3'
+
+    // For testing FIPS detection without actual FIPS mode, use these instead:
+    jvmArgs '-Dsemeru.fips=false'
+
+    // Show standard output and error during tests
     testLogging {
-        events "passed"
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        showStandardStreams = true
     }
 }
 

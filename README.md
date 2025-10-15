@@ -62,3 +62,15 @@ coverage-generate - Run tests with coverage report
 coverage-check    - Verify code coverage meets minimum threshold ( > 70%)
 coverage-open     - Open code coverage report
 ```
+
+## Semeru 21 FIPS
+
+```bash
+java -version
+java -XshowSettings:properties -version 2>&1 | grep -i "java.home"
+ls -la /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/
+grep -i "OpenJCEPlus" /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/java.security
+grep "^security.provider" /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/java.security
+find / -name "*OpenJCEPlus*" -o -name "*FIPS*" 2>/dev/null
+```
+

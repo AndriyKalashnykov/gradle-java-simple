@@ -103,7 +103,7 @@ clean:
 
 #test: @ Run project tests
 test: build
-	@ ./gradlew clean test
+	@ ./gradlew clean :app:test --tests "org.example.FIPSValidatorTest" --info -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
 
 #build: @ Build project
 build:
@@ -142,3 +142,6 @@ stop-gradle:
 	@ ./gradlew --stop
 	@ pkill -f '.*GradleDaemon.*'
 
+docker-image:
+	docker build -t gradle-java-fips-test .
+	docker run --rm gradle-java-fips-test

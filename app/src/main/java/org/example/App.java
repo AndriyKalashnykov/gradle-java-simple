@@ -93,5 +93,10 @@ public class App {
 
         app.addMessage("Welcome to the application!");
         System.out.println("Messages: " + app.getMessagesAsString());
+
+        // Display FIPS status
+        FIPSValidator fipsValidator = new FIPSValidator();
+        System.out.println("\n" + fipsValidator.getFIPSStatus());
+        fipsValidator.printFIPSProviders();
     }
 }
