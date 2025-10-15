@@ -143,5 +143,5 @@ stop-gradle:
 	@ pkill -f '.*GradleDaemon.*'
 
 docker-image:
-	docker build -t gradle-java-fips-test .
+	docker build --load -t gradle-java-fips-test .
 	docker run --rm gradle-java-fips-test
