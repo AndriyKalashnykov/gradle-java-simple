@@ -102,7 +102,7 @@ dependencyCheck {
     outputDirectory = file("${layout.buildDirectory.get()}\n/reports/dependency-check")
 
     // Suppress false positives by CVE ID
-    suppressionFile = file("$rootDir/dependency-check-suppressions.xml")
+    suppressionFile = "$rootDir/dependency-check-suppressions.xml"
 
     // Skip test dependencies (optional)
     skipTestGroups = true
@@ -119,7 +119,7 @@ dependencyCheck {
 
     // Database settings
     // Directory to store the vulnerability database
-    data.directory = file("$rootDir/.gradle/dependency-check-data")
+    data.directory = "$rootDir/.gradle/dependency-check-data"
     // Username/password for database connection (if using database storage)
     // data.username = 'dc'
     // data.password = 'dc'
