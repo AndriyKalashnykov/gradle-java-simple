@@ -138,10 +138,20 @@ coverage-check: coverage-generate
 coverage-open:
 	@ $(if $(filter 1,$(IS_DARWIN)),open,xdg-open) ./app/build/reports/jacoco/test/html/index.html
 
+#docker-image: @ Build and run Docker image for testing
+docker-image:
+	docker build --load -t gradle-java-fips-test .
+	docker run --rm gradle-java-fips-test
+
+#stop-gradle: @ Stop all Gradle daemons
 stop-gradle:
 	@ ./gradlew --stop
 	@ pkill -f '.*GradleDaemon.*'
 
-docker-image:
-	docker build --load -t gradle-java-fips-test .
-	docker run --rm gradle-java-fips-test
+#upgrade: @ Trigger Renovate to check and upgrade dependencies (via git commit)
+upgrade:
+	@ echo "Dependencies are managed by Renovate bot."
+	@ echo "Renovate automatically creates PRs for updates that will auto-merge when checks pass."
+	@ echo ""
+	@ echo "Current dependencies:"
+	@ ./gradlew :app:dependencies --configuration runtimeClasspath | grep -E '^\+---|^\\\---' | head -20

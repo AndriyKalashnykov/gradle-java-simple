@@ -74,6 +74,7 @@ $ fips-mode-setup --check
 ```
 
 ```bash
+docker run --rm -it icr.io/webmethods/stig-hardened-images/dev-release/ubi9/ubi9-basic-java-semeru21-runtime:latest /bin/bash
 java -version
 java -XshowSettings:properties -version 2>&1 | grep -i "java.home"
 ls -la /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/

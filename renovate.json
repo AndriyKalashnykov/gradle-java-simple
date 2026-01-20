@@ -31,17 +31,9 @@
   ],
   "packageRules": [
     {
-      "description": "Automerge major updates",
+      "description": "Automerge all updates after checks pass",
       "matchUpdateTypes": [
-        "major"
-      ],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
-    },
-    {
-      "description": "Automerge non-major updates",
-      "matchUpdateTypes": [
+        "major",
         "minor",
         "patch",
         "digest",
@@ -52,19 +44,13 @@
         "ref",
         "none",
         "security",
-        "grop",
+        "group",
         "unpin"
       ],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": true
-    },
-    {
-      "description": "Automerge github-actions updates",
-      "matchManagers": ["github-actions"],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "ignoreTests": false
     }
   ]
 }
