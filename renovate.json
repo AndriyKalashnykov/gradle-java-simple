@@ -23,7 +23,7 @@
   "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
   "platformAutomerge": true,
-  "prConcurrentLimit": 0,
+  "prConcurrentLimit": 50,
   "prHourlyLimit": 0,
   "groupName": "all",
   "labels": [
