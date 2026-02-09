@@ -75,7 +75,7 @@ help:
 	@echo
 	@echo "Commands :"
 	@echo
-	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST)| tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-17s\033[0m - %s\n", $$1, $$2}'
+	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST)| tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
 
 build-deps-check:
 	@. $(SDKMAN)
@@ -155,3 +155,22 @@ upgrade:
 	@ echo ""
 	@ echo "Current dependencies:"
 	@ ./gradlew :app:dependencies --configuration runtimeClasspath | grep -E '^\+---|^\\\---' | head -20
+
+#bootstrap-renovate: @ Install nvm and npm for renovate
+bootstrap-renovate:
+	@if [ ! -d "$$HOME/.nvm" ]; then \
+		echo "Installing nvm..."; \
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash; \
+		export NVM_DIR="$$HOME/.nvm"; \
+		[ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
+		nvm install --lts; \
+		nvm use --lts; \
+	else \
+		echo "nvm already installed"; \
+		export NVM_DIR="$$HOME/.nvm"; \
+		[ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
+	fi
+
+#validate-renovate: @ Validate Renovate configuration
+validate-renovate: bootstrap-renovate
+	npx -p renovate -c 'renovate-config-validator'
