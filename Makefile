@@ -90,6 +90,11 @@ endif
 	@. $(SDKMAN) && echo N | sdk install java $(JAVA_VER) && sdk use java $(JAVA_VER)
 	@. $(SDKMAN) && echo N | sdk install gradle $(GRADLE_VER) && sdk use gradle $(GRADLE_VER)
 
+	@export SDKMAN_DIR="$$HOME/.sdkman"
+	@[[ -s "$$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$$HOME/.sdkman/bin/sdkman-init.sh"
+
+
+
 #check-env: @ Check installed tools
 check-env: build-deps-check
 
@@ -106,7 +111,7 @@ test: build
 	@ ./gradlew clean :app:test --tests "org.example.FIPSValidatorTest" --info -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
 
 #build: @ Build project
-build:
+build: check-env
 	@ ./gradlew clean build
 
 #run: @ Run project
@@ -148,13 +153,9 @@ stop-gradle:
 	@ ./gradlew --stop
 	@ pkill -f '.*GradleDaemon.*'
 
-#upgrade: @ Trigger Renovate to check and upgrade dependencies (via git commit)
+#upgrade: @ Check and upgrade dependencies (via git commit)
 upgrade:
-	@ echo "Dependencies are managed by Renovate bot."
-	@ echo "Renovate automatically creates PRs for updates that will auto-merge when checks pass."
-	@ echo ""
-	@ echo "Current dependencies:"
-	@ ./gradlew :app:dependencies --configuration runtimeClasspath | grep -E '^\+---|^\\\---' | head -20
+	@ ./gradlew :app:dependencyUpdates --no-configuration-cache
 
 #bootstrap-renovate: @ Install nvm and npm for renovate
 bootstrap-renovate:
