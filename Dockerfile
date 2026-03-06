@@ -1,5 +1,5 @@
 # Build stage - compile the application
-FROM --platform=linux/amd64 gradle:9.3.1-jdk21@sha256:5f836f4642496f816f15d495b007e1912f36bf58fbea0247c0b761af438d7cf2 AS builder
+FROM --platform=linux/amd64 gradle:9.4.0-jdk21@sha256:33ad0e6350d1004ac7def68c4510f62e4d181dbf7e376089ef57175c0400496e AS builder
 
 WORKDIR /build
 
