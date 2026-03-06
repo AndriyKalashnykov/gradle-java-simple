@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "*"
+    ]
+  },
+  "experiments": {
+    "claude_code_experimental_agents_teams": true
+  },
+  "agentsTeams": {
+    "tmuxSplitPanes": true
+  }
+}

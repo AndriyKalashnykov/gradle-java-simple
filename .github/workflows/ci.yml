@@ -1,4 +1,4 @@
-# This workflow will build a Java project with Maven
+# This workflow will build a Java project with Gradle
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
 name: ci
@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build-and-test:
 
     runs-on: ubuntu-latest
 
@@ -48,11 +48,40 @@ jobs:
     - name: Build
       run: make clean build
 
+    - name: Lint
+      run: make lint
+
     - name: Test
-      run: make clean test
+      run: make test
 
     - name: Verify code coverage meets minimum threshold ( > 60%)
-      run: make coverage-generate coverage-check
+      run: make coverage-check
 
     - name: Run
       run: make run
+
+  docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download repository
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+    - name: Build Docker image
+      run: make docker-build
+
+    - name: Login to Docker Registry
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DOCKER_REGISTRY != ''
+      uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+      with:
+        registry: ${{ vars.DOCKER_REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Push Docker image
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DOCKER_REGISTRY != ''
+      run: make docker-push DOCKER_REGISTRY=${{ vars.DOCKER_REGISTRY }} DOCKER_REPO=${{ vars.DOCKER_REPO }} DOCKER_TAG=${{ github.sha }}

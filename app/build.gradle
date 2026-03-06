@@ -10,7 +10,15 @@ plugins {
     id 'application'
     id 'org.owasp.dependencycheck'
     id 'jacoco'
+    id 'checkstyle'
     id 'com.github.ben-manes.versions'
+}
+
+checkstyle {
+    toolVersion = '10.21.4'
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    ignoreFailures = false
+    maxWarnings = 0
 }
 
 group = "${appArtefactGroup}"

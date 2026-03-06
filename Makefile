@@ -1,177 +1,162 @@
 .DEFAULT_GOAL := help
-
 SHELL := /bin/bash
-SDKMAN := $(HOME)/.sdkman/bin/sdkman-init.sh
-CURRENT_USER_NAME := $(shell whoami)
 
-JAVA_VER  := 21-tem
+GRADLE     := ./gradlew
+NO_CACHE   := --no-configuration-cache
+JAVA_VER   := 21-tem
 GRADLE_VER := 9.0.0
 
-SDKMAN_EXISTS := @printf "sdkman"
-NODE_EXISTS := @printf "npm"
+DOCKER_IMAGE      := gradle-java-fips-test
+DOCKER_REGISTRY   ?= docker.io
+DOCKER_REPO       ?= $(shell whoami)/$(DOCKER_IMAGE)
+DOCKER_TAG        ?= latest
+DOCKER_FULL_IMAGE := $(DOCKER_REGISTRY)/$(DOCKER_REPO):$(DOCKER_TAG)
 
-IS_DARWIN := 0
-IS_LINUX := 0
-IS_FREEBSD := 0
-IS_WINDOWS := 0
-IS_AMD64 := 0
-IS_AARCH64 := 0
-IS_RISCV64 := 0
+OPEN_CMD := $(if $(filter Darwin,$(shell uname -s)),open,xdg-open)
 
-# Platform and architecture detection
-ifeq ($(OS), Windows_NT)
-	IS_WINDOWS := 1
-	# Windows architecture detection using PROCESSOR_ARCHITECTURE
-	ifeq ($(PROCESSOR_ARCHITECTURE), AMD64)
-		IS_AMD64 := 1
-	else ifeq ($(PROCESSOR_ARCHITECTURE), x86)
-		# 32-bit x86 - you might want to add IS_X86 := 1 if needed
-		IS_AMD64 := 0
-	else ifeq ($(PROCESSOR_ARCHITECTURE), ARM64)
-		IS_AARCH64 := 1
-	else
-		# Fallback: check PROCESSOR_ARCHITEW6432 for 32-bit processes on 64-bit systems
-		ifeq ($(PROCESSOR_ARCHITEW6432), AMD64)
-			IS_AMD64 := 1
-		else ifeq ($(PROCESSOR_ARCHITEW6432), ARM64)
-			IS_AARCH64 := 1
-		else
-			# Default to AMD64 if unable to determine
-			IS_AMD64 := 1
-		endif
-	endif
-else
-	# Unix-like systems - detect platform and architecture
-	UNAME_S := $(shell uname -s)
-	UNAME_M := $(shell uname -m)
-
-	# Platform detection
-	ifeq ($(UNAME_S), Darwin)
-		IS_DARWIN := 1
-	else ifeq ($(UNAME_S), Linux)
-		IS_LINUX := 1
-	else ifeq ($(UNAME_S), FreeBSD)
-		IS_FREEBSD := 1
-	else
-		$(error Unsupported platform: $(UNAME_S). Supported platforms: Darwin, Linux, FreeBSD, Windows_NT)
-	endif
-
-	# Architecture detection
-	ifneq (, $(filter $(UNAME_M), x86_64 amd64))
-		IS_AMD64 := 1
-	else ifneq (, $(filter $(UNAME_M), aarch64 arm64))
-		IS_AARCH64 := 1
-	else ifneq (, $(filter $(UNAME_M), riscv64))
-		IS_RISCV64 := 1
-	else
-		$(error Unsupported architecture: $(UNAME_M). Supported architectures: x86_64/amd64, aarch64/arm64, riscv64)
-	endif
-endif
+.PHONY: help check-env clean build lint test run \
+        cve-check cve-db-update cve-db-purge \
+        coverage-generate coverage-check coverage-open \
+        require-docker docker-build docker-run docker-image docker-push \
+        stop-gradle upgrade bootstrap-renovate validate-renovate \
+        ci ci-docker tmux-session
 
 #help: @ List available tasks
 help:
-	@clear
-	@echo "Usage: make COMMAND"
-	@echo
-	@echo "Commands :"
-	@echo
-	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST)| tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
+	@echo -e "Usage: make COMMAND\n\nCommands :\n"
+	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
 
-build-deps-check:
-	@. $(SDKMAN)
-ifndef SDKMAN_DIR
-	@curl -s "https://get.sdkman.io?rcupdate=false" | bash
-	@source $(SDKMAN)
-	ifndef SDKMAN_DIR
-		SDKMAN_EXISTS := @echo "SDKMAN_VERSION is undefined" && exit 1
-	endif
-endif
+#check-env: @ Verify and install required build dependencies
+check-env:
+	@bash -c '\
+	  set -eo pipefail; \
+	  ok()   { printf "\033[32m[OK]\033[0m    %s\n" "$$1"; }; \
+	  warn() { printf "\033[33m[WARN]\033[0m  %s\n" "$$1"; }; \
+	  fail() { printf "\033[31m[FAIL]\033[0m  %s\n" "$$1"; exit 1; }; \
+	  command -v curl >/dev/null 2>&1 && ok "curl" || fail "curl not found"; \
+	  export SDKMAN_DIR="$${SDKMAN_DIR:-$$HOME/.sdkman}"; \
+	  if [[ -s "$$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then \
+	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; ok "SDKMAN"; \
+	  else \
+	    warn "SDKMAN not found -- installing..."; \
+	    curl -s "https://get.sdkman.io?rcupdate=false" | bash; \
+	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; ok "SDKMAN installed"; \
+	  fi; \
+	  export SDKMAN_AUTO_ANSWER=true; \
+	  sdk install java "$(JAVA_VER)" 2>/dev/null || true; sdk use java "$(JAVA_VER)"; ok "Java $(JAVA_VER)"; \
+	  sdk install gradle "$(GRADLE_VER)" 2>/dev/null || true; sdk use gradle "$(GRADLE_VER)"; ok "Gradle $(GRADLE_VER)"; \
+	  command -v docker >/dev/null 2>&1 && ok "Docker (optional)" || warn "Docker not found (needed for docker-* targets)"; \
+	'
 
-	@. $(SDKMAN) && echo N | sdk install java $(JAVA_VER) && sdk use java $(JAVA_VER)
-	@. $(SDKMAN) && echo N | sdk install gradle $(GRADLE_VER) && sdk use gradle $(GRADLE_VER)
-
-	@export SDKMAN_DIR="$$HOME/.sdkman"
-	@[[ -s "$$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$$HOME/.sdkman/bin/sdkman-init.sh"
-
-
-
-#check-env: @ Check installed tools
-check-env: build-deps-check
-
-	@printf "\xE2\x9C\x94 "
-	$(SDKMAN_EXISTS)
-	@printf "\n"
-
-#clean: @ Cleanup
+#clean: @ Clean build artifacts
 clean:
-	@ ./gradlew clean && rm -rf .gradle build app/build
-
-#test: @ Run project tests
-test: build
-	@ ./gradlew clean :app:test --tests "org.example.FIPSValidatorTest" --info -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
+	@$(GRADLE) clean && rm -rf build app/build
 
 #build: @ Build project
 build: check-env
-	@ ./gradlew clean build
+	@$(GRADLE) build
+
+#lint: @ Run Java code style checks (Checkstyle)
+lint:
+	@$(GRADLE) checkstyleMain checkstyleTest
+
+#test: @ Run project tests
+test:
+	@$(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
+	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
 
 #run: @ Run project
-run: test
-	@ ./gradlew clean :app:run --no-configuration-cache --warning-mode all
+run:
+	@$(GRADLE) :app:run $(NO_CACHE) --warning-mode all
 
-#cve-check: @ Run dependencies check for publicly disclosed vulnerabilities in application dependencies
+#cve-check: @ Run OWASP dependency vulnerability scan (needs NVD_API_KEY)
 cve-check:
-	@ ./gradlew clean  :app:dependencyCheckAnalyze :app:securityScan --no-configuration-cache --warning-mode all
+	@[ -n "$${NVD_API_KEY:-}" ] || echo "Warning: NVD_API_KEY not set"
+	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all
 
-#cve-db-update @ Update vulnerability database manually
+#cve-db-update: @ Update vulnerability database manually
 cve-db-update:
-	@ ./gradlew dependencyCheckUpdate
+	@$(GRADLE) dependencyCheckUpdate $(NO_CACHE)
 
-#cve-db-purge: Purge local database (forces fresh download)
+#cve-db-purge: @ Purge local database (forces fresh download)
 cve-db-purge:
-	@ ./gradlew dependencyCheckPurge
+	@$(GRADLE) dependencyCheckPurge $(NO_CACHE)
 
 #coverage-generate: @ Run tests with coverage report
-coverage-generate: build
-	@ ./gradlew clean test jacocoTestReport
-	@echo "Coverage report available at: ./app/build/reports/jacoco/test/html/index.html"
+coverage-generate:
+	@$(GRADLE) test jacocoTestReport
 
-#coverage-check: @ Verify code coverage meets minimum threshold ( > 60%)
+#coverage-check: @ Verify code coverage meets minimum threshold (> 60%)
 coverage-check: coverage-generate
-	@ ./gradlew jacocoTestCoverageVerification
+	@$(GRADLE) jacocoTestCoverageVerification
 
-#coverage-open: @ Open code coverage report
+#coverage-open: @ Open code coverage report in browser
 coverage-open:
-	@ $(if $(filter 1,$(IS_DARWIN)),open,xdg-open) ./app/build/reports/jacoco/test/html/index.html
+	@$(OPEN_CMD) ./app/build/reports/jacoco/test/html/index.html
 
-#docker-image: @ Build and run Docker image for testing
-docker-image:
-	docker build --load -t gradle-java-fips-test .
-	docker run --rm gradle-java-fips-test
+require-docker:
+	@command -v docker >/dev/null 2>&1 || { echo "Error: Docker required. Install: https://docs.docker.com/get-docker/"; exit 1; }
+
+#docker-build: @ Build Docker image
+docker-build: require-docker
+	docker build --load -t $(DOCKER_IMAGE) .
+	docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
+
+#docker-run: @ Run Docker image
+docker-run: require-docker
+	docker run --rm $(DOCKER_IMAGE)
+
+#docker-image: @ Build and run Docker image
+docker-image: docker-build docker-run
+
+#docker-push: @ Push Docker image to registry
+docker-push: docker-build
+	docker push $(DOCKER_FULL_IMAGE)
 
 #stop-gradle: @ Stop all Gradle daemons
 stop-gradle:
-	@ ./gradlew --stop
-	@ pkill -f '.*GradleDaemon.*'
+	@$(GRADLE) --stop
 
-#upgrade: @ Check and upgrade dependencies (via git commit)
+#upgrade: @ Check for dependency updates
 upgrade:
-	@ ./gradlew :app:dependencyUpdates --no-configuration-cache
+	@$(GRADLE) :app:dependencyUpdates $(NO_CACHE)
 
 #bootstrap-renovate: @ Install nvm and npm for renovate
 bootstrap-renovate:
-	@if [ ! -d "$$HOME/.nvm" ]; then \
-		echo "Installing nvm..."; \
-		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash; \
-		export NVM_DIR="$$HOME/.nvm"; \
-		[ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
-		nvm install --lts; \
-		nvm use --lts; \
-	else \
-		echo "nvm already installed"; \
-		export NVM_DIR="$$HOME/.nvm"; \
-		[ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
-	fi
+	@bash -c '\
+	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
+	  if [ ! -d "$$NVM_DIR" ]; then \
+	    echo "Installing nvm..."; \
+	    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash; \
+	  else echo "nvm already installed"; fi; \
+	  [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
+	  nvm install --lts; nvm use --lts; \
+	'
 
 #validate-renovate: @ Validate Renovate configuration
-validate-renovate: bootstrap-renovate
-	npx -p renovate -c 'renovate-config-validator'
+validate-renovate:
+	@bash -c '\
+	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
+	  [ -s "$$NVM_DIR/nvm.sh" ] || { echo "Error: nvm not found. Run: make bootstrap-renovate"; exit 1; }; \
+	  . "$$NVM_DIR/nvm.sh"; npx -p renovate -c "renovate-config-validator"; \
+	'
+
+#ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
+ci: check-env
+	@echo "=== CI Step 1/5: Build ===" && $(GRADLE) clean build
+	@echo "=== CI Step 2/5: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest
+	@echo "=== CI Step 3/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
+	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
+	@echo "=== CI Step 4/5: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
+	@echo "=== CI Step 5/5: Run ===" && $(GRADLE) :app:run $(NO_CACHE) --warning-mode all
+	@echo "=== CI Complete ==="
+
+#ci-docker: @ Run full CI pipeline including Docker build
+ci-docker: ci docker-build
+	@echo "=== CI Docker Complete ==="
+
+#tmux-session: @ Launch tmux session with Claude
+tmux-session:
+	@tmux has-session -t gradle-fips-test 2>/dev/null || tmux new-session -d -s gradle-fips-test
+	@tmux send-keys -t gradle-fips-test "claude" C-m
+	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
