@@ -4,7 +4,7 @@ SHELL := /bin/bash
 GRADLE     := ./gradlew
 NO_CACHE   := --no-configuration-cache
 JAVA_VER   := 21-tem
-GRADLE_VER := 9.0.0
+GRADLE_VER := 9.4.0
 
 DOCKER_IMAGE      := gradle-java-fips-test
 DOCKER_REGISTRY   ?= docker.io
