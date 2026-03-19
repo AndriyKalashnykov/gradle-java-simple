@@ -7,48 +7,27 @@
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
-    ":automergePr",
-    ":automergeRequireAllStatusChecks",
-    ":prConcurrentLimitNone",
-    ":separatePatchReleases",
     "replacements:all",
     "workarounds:all"
   ],
-  "postUpdateOptions": [
-    "gomodTidy"
-  ],
-  "commitMessagePrefix": "chore(all): ",
-  "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
+  "automerge": true,
+  "automergeType": "pr",
   "platformAutomerge": true,
   "prConcurrentLimit": 50,
   "prHourlyLimit": 0,
-  "groupName": "all",
-  "labels": [
-    "dependencies"
-  ],
+  "minimumReleaseAge": "3 days",
   "packageRules": [
     {
-      "description": "Automerge all updates after checks pass",
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch",
-        "digest",
-        "pin",
-        "pinDigest",
-        "internal",
-        "devDependencies",
-        "ref",
-        "none",
-        "security",
-        "group",
-        "unpin"
-      ],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true,
-      "ignoreTests": false
+      "description": "Group all non-major updates and automerge after checks pass",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "lockFileMaintenance"],
+      "groupName": "all non-major"
+    },
+    {
+      "description": "Major updates: separate PRs, longer stabilization before automerge",
+      "matchUpdateTypes": ["major"],
+      "groupName": "major updates",
+      "minimumReleaseAge": "7 days"
     }
   ]
 }
