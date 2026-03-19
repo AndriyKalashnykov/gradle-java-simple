@@ -83,10 +83,12 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **build-and-test** job: builds, lints, tests, verifies coverage, and runs the app on every push/PR to `main`
-- **docker** job: builds Docker image after tests pass, conditionally pushes on main branch merge
+- **build-and-test** job: single `./gradlew clean build jacocoTestCoverageVerification` invocation (build + lint + test + coverage), then runs the app
+- **docker** job: builds Docker image **in parallel** with build-and-test, conditionally pushes on main branch merge
+- **concurrency**: superseded runs on the same branch are automatically cancelled
+- No sdkman in CI — JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
 
-Run CI locally before pushing: `make ci` (mirrors the build-and-test job exactly)
+Run CI locally before pushing: `make ci` (mirrors the build-and-test job)
 Run CI with Docker: `make ci-docker`
 
 ## Claude Code Agent Team

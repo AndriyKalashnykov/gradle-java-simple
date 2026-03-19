@@ -13,22 +13,17 @@ Validate CI pipeline steps locally before pushing to prevent CI failures. Mirror
 
 ## GitHub Actions Workflow (`.github/workflows/ci.yml`)
 
-The CI pipeline runs on push/PR to `main` with these steps:
+The CI pipeline runs on push/PR to `main`. Uses `concurrency` to cancel superseded runs. Two jobs run **in parallel**:
 
 ### Job: build-and-test
 1. Checkout repository
 2. Set up JDK 21 (IBM Semeru)
-3. Setup Gradle
-4. Cache Gradle dependencies
-5. Validate Gradle wrapper
-6. Setup sdkman
-7. **Build**: `make clean build`
-8. **Lint**: `make lint`
-9. **Test**: `make test`
-10. **Coverage**: `make coverage-check`
-11. **Run**: `make run`
+3. Setup Gradle (includes caching)
+4. Validate Gradle wrapper
+5. **Build, lint, test, coverage**: `./gradlew clean build jacocoTestCoverageVerification` (single invocation)
+6. **Run**: `./gradlew :app:run --no-configuration-cache`
 
-### Job: docker (needs: build-and-test)
+### Job: docker (runs in parallel)
 1. Checkout repository
 2. Setup Docker Buildx
 3. **Build image**: `make docker-build`
@@ -44,15 +39,16 @@ CI Step 4/5: Coverage -> ./gradlew jacocoTestReport jacocoTestCoverageVerificati
 CI Step 5/5: Run      -> ./gradlew :app:run
 ```
 
+Note: `make ci` runs steps individually for clearer output. The GitHub workflow consolidates build+lint+test+coverage into a single Gradle invocation for speed.
+
 ## Diagnosing CI Failures
 
-1. **sdkman setup**: ensure `$HOME/.sdkman/bin/sdkman-init.sh` exists
-2. **Gradle wrapper validation**: ensure `gradle/wrapper/gradle-wrapper.jar` is genuine
-3. **Cache issues**: clean with `make clean` then rebuild
-4. **Checkstyle violations**: run `make lint` to see style issues
-5. **Test failures**: run `make test` with `--info` for details
-6. **Coverage below 60%**: run `make coverage-generate` and check the HTML report
-7. **Docker build fails**: check Dockerfile, base image availability
+1. **Gradle wrapper validation**: ensure `gradle/wrapper/gradle-wrapper.jar` is genuine
+2. **Cache issues**: clean with `make clean` then rebuild
+3. **Checkstyle violations**: run `make lint` to see style issues
+4. **Test failures**: run `make test` with `--info` for details
+5. **Coverage below 60%**: run `make coverage-generate` and check the HTML report
+6. **Docker build fails**: check Dockerfile, base image availability
 
 ## Workflow
 
