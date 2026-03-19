@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 GRADLE     := ./gradlew
 NO_CACHE   := --no-configuration-cache
-JAVA_VER   := 21-sem
+JAVA_VER   := 21.0.10-sem
 GRADLE_VER := 9.4.1
 
 DOCKER_IMAGE      := gradle-java-fips-test
