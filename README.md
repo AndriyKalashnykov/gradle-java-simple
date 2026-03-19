@@ -1,6 +1,7 @@
-[![ci](https://github.com/AndriyKalashnykov/gradle-java-simple/actions/workflows/ci.yml/badge.svg)](https://github.com/AndriyKalashnykov/gradle-java-simple/actions/workflows/ci.yml)
-[![Hits](https://hits.sh/github.com/AndriyKalashnykov/gradle-maven-simple.svg?view=today-total&style=plastic)](https://hits.sh/github.com/AndriyKalashnykov/gradle-maven-simple/)
+[![ci](https://github.com/AndriyKalashnykov/gradle-java-simple/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AndriyKalashnykov/gradle-java-simple/actions/workflows/ci.yml)
+[![Hits](https://hits.sh/github.com/AndriyKalashnykov/gradle-java-simple.svg?view=today-total&style=plastic)](https://hits.sh/github.com/AndriyKalashnykov/gradle-java-simple/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+[![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://app.renovatebot.com/dashboard#github/AndriyKalashnykov/gradle-java-simple)
 # Gradle based Java project for general purpose testing
 
 ## Pre-requisites
@@ -73,8 +74,8 @@ coverage-check    - Verify code coverage meets minimum threshold (> 60%)
 coverage-open     - Open code coverage report in browser
 docker-build      - Build Docker image
 docker-run        - Run Docker image
-docker-image      - Build and run Docker image for testing
-docker-push       - Push Docker image to registry (use DOCKER_REGISTRY, DOCKER_REPO, DOCKER_TAG)
+docker-image      - Build and run Docker image
+docker-push       - Push Docker image to registry
 stop-gradle       - Stop all Gradle daemons
 upgrade           - Check for dependency updates
 bootstrap-renovate - Install nvm and npm for renovate
@@ -86,20 +87,18 @@ tmux-session      - Launch tmux session with Claude
 
 ## Semeru 21 FIPS
 
+Uses the public IBM Semeru runtime from IBM Container Registry (`icr.io/appcafe`):
+
 ```bash
-ibmcloud login -sso
-ibmcloud cr login --client docker
-docker pull icr.io/webmethods/stig-hardened-images/dev-release/ubi9/ubi9-basic-java-semeru21-runtime:latest
-docker run --rm -it icr.io/webmethods/stig-hardened-images/dev-release/ubi9/ubi9-basic-java-semeru21-runtime:latest /bin/bash
-$ fips-mode-setup --check
+docker pull icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal
+docker run --rm -it icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal /bin/bash
 ```
 
 ```bash
-docker run --rm -it icr.io/webmethods/stig-hardened-images/dev-release/ubi9/ubi9-basic-java-semeru21-runtime:latest /bin/bash
 java -version
 java -XshowSettings:properties -version 2>&1 | grep -i "java.home"
-ls -la /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/
-grep -i "OpenJCEPlus" /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/java.security
-grep "^security.provider" /usr/lib/jvm/ibm-semeru-open-21-jre/conf/security/java.security
+ls -la /opt/java/openjdk/conf/security/
+grep -i "OpenJCEPlus" /opt/java/openjdk/conf/security/java.security
+grep "^security.provider" /opt/java/openjdk/conf/security/java.security
 find / -name "*OpenJCEPlus*" -o -name "*FIPS*" 2>/dev/null
 ```
