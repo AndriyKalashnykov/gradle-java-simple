@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 GRADLE     := ./gradlew
 NO_CACHE   := --no-configuration-cache
-JAVA_VER   := 21-tem
+JAVA_VER   := 21-sem
 GRADLE_VER := 9.4.1
 
 DOCKER_IMAGE      := gradle-java-fips-test
@@ -14,7 +14,7 @@ DOCKER_FULL_IMAGE := $(DOCKER_REGISTRY)/$(DOCKER_REPO):$(DOCKER_TAG)
 
 OPEN_CMD := $(if $(filter Darwin,$(shell uname -s)),open,xdg-open)
 
-.PHONY: help check-env clean build lint test run \
+.PHONY: help deps clean build lint test run \
         cve-check cve-db-update cve-db-purge \
         coverage-generate coverage-check coverage-open \
         require-docker docker-build docker-run docker-image docker-push \
@@ -26,8 +26,8 @@ help:
 	@echo -e "Usage: make COMMAND\n\nCommands :\n"
 	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
 
-#check-env: @ Verify and install required build dependencies
-check-env:
+#deps: @ Verify and install required build dependencies
+deps:
 	@bash -c '\
 	  set -eo pipefail; \
 	  ok()   { printf "\033[32m[OK]\033[0m    %s\n" "$$1"; }; \
@@ -53,7 +53,7 @@ clean:
 	@$(GRADLE) clean && rm -rf build app/build
 
 #build: @ Build project
-build: check-env
+build: deps
 	@$(GRADLE) build
 
 #lint: @ Run Java code style checks (Checkstyle)
@@ -142,7 +142,7 @@ validate-renovate:
 	'
 
 #ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
-ci: check-env
+ci: deps
 	@echo "=== CI Step 1/5: Build ===" && $(GRADLE) clean build
 	@echo "=== CI Step 2/5: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest
 	@echo "=== CI Step 3/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \

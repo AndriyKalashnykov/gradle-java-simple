@@ -12,12 +12,12 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 
 | Command | Description |
 |---------|-------------|
-| `make build` | Build project (runs `check-env` first) |
+| `make build` | Build project (runs `deps` first) |
 | `make test` | Run FIPSValidatorTest specifically |
 | `make run` | Run the app |
 | `make clean` | Clean build artifacts |
 | `make lint` | Run Java code style checks (Checkstyle) |
-| `make check-env` | Verify and install build dependencies (sdkman, Java, Gradle) |
+| `make deps` | Verify and install build dependencies (sdkman, IBM Semeru 21, Gradle) |
 | `make coverage-generate` | Run tests with JaCoCo coverage report |
 | `make coverage-check` | Verify coverage meets 60% minimum threshold |
 | `make coverage-open` | Open coverage report in browser |
@@ -30,7 +30,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make docker-push` | Push Docker image to registry |
 | `make upgrade` | Check for dependency updates |
 
-**Target design:** Individual targets (`test`, `run`, `lint`, etc.) are self-contained and do not cascade through deep dependency chains. The `ci` target orchestrates the full pipeline as a linear sequence. Only `build` depends on `check-env`; other targets assume the environment is already set up (or Gradle handles compilation internally).
+**Target design:** Individual targets (`test`, `run`, `lint`, etc.) are self-contained and do not cascade through deep dependency chains. The `ci` target orchestrates the full pipeline as a linear sequence. Only `build` depends on `deps`; other targets assume the environment is already set up (or Gradle handles compilation internally).
 
 ### Direct Gradle Commands
 
@@ -57,7 +57,7 @@ Single-module Gradle project (`app/`) with standard Java layout:
 
 ## Key Configuration
 
-- **Java 21** (Temurin via sdkman, with toolchain auto-download via foojay-resolver)
+- **Java 21** (IBM Semeru via sdkman, with toolchain auto-download via foojay-resolver)
 - **JVM args for FIPS**: `-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3` (configured in `application` block; tests run with `-Dsemeru.fips=false`)
 - **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%

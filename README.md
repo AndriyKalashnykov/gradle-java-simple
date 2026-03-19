@@ -9,7 +9,7 @@
 - [`GNU Make`](https://www.gnu.org/software/make/)
 - [curl](https://curl.se/) (for automatic sdkman installation)
 
-> **Note:** `make check-env` (or `make build`) will automatically install [sdkman](https://sdkman.io/install), Java 21, and Gradle if they are not already present.
+> **Note:** `make deps` (or `make build`) will automatically install [sdkman](https://sdkman.io/install), IBM Semeru 21, and Gradle if they are not already present.
 
 ### Optional
 
@@ -20,7 +20,7 @@
 
 Verify and install dependencies:
 ```bash
-make check-env
+make deps
 ```
 
 Build:
@@ -60,7 +60,7 @@ Usage: make COMMAND
 Commands :
 
 help              - List available tasks
-check-env         - Verify and install required build dependencies
+deps              - Verify and install required build dependencies
 clean             - Clean build artifacts
 build             - Build project
 lint              - Run Java code style checks (Checkstyle)

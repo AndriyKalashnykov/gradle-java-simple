@@ -17,15 +17,15 @@ The CI pipeline runs on push/PR to `main` with these steps:
 
 ### Job: build-and-test
 1. Checkout repository
-2. Set up JDK 21 (Temurin)
+2. Set up JDK 21 (IBM Semeru)
 3. Setup Gradle
 4. Cache Gradle dependencies
 5. Validate Gradle wrapper
 6. Setup sdkman
 7. **Build**: `make clean build`
 8. **Lint**: `make lint`
-9. **Test**: `make clean test`
-10. **Coverage**: `make coverage-generate coverage-check`
+9. **Test**: `make test`
+10. **Coverage**: `make coverage-check`
 11. **Run**: `make run`
 
 ### Job: docker (needs: build-and-test)
@@ -37,11 +37,11 @@ The CI pipeline runs on push/PR to `main` with these steps:
 ## `make ci` Mirrors These Steps
 
 ```
-CI Step 1/5: Build    -> make clean build
-CI Step 2/5: Lint     -> make lint
-CI Step 3/5: Test     -> make clean test
-CI Step 4/5: Coverage -> make coverage-generate coverage-check
-CI Step 5/5: Run      -> make run
+CI Step 1/5: Build    -> ./gradlew clean build
+CI Step 2/5: Lint     -> ./gradlew checkstyleMain checkstyleTest
+CI Step 3/5: Test     -> ./gradlew :app:test (FIPSValidatorTest)
+CI Step 4/5: Coverage -> ./gradlew jacocoTestReport jacocoTestCoverageVerification
+CI Step 5/5: Run      -> ./gradlew :app:run
 ```
 
 ## Diagnosing CI Failures
