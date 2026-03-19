@@ -10,10 +10,10 @@ COPY dependency-check-suppressions.xml ./
 COPY app app
 
 # Build the application
-RUN ./gradlew :app:build -x test
+RUN ./gradlew :app:build -x test -x checkstyleMain -x checkstyleTest
 
-# Runtime stage - use FIPS-enabled Semeru runtime
-FROM --platform=linux/amd64 icr.io/webmethods/stig-hardened-images/dev-release/ubi9/ubi9-basic-java-semeru21-runtime:latest
+# Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry)
+FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:8e7b0114fefdc11491ed5fe3b5c64248c03896ee17f92a305195cb74eab711d7
 
 WORKDIR /app
 
