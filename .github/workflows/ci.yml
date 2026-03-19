@@ -1,5 +1,4 @@
-# This workflow will build a Java project with Gradle
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+# CI pipeline: build, lint, test, coverage, run, and Docker image build/push
 
 name: ci
 
@@ -31,7 +30,7 @@ jobs:
     - name: Cache Gradle and build outputs
       uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
-        path:
+        path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
           build
@@ -42,8 +41,6 @@ jobs:
       uses: gradle/actions/wrapper-validation@0723195856401067f7a2779048b490ace7a47d7c # v5
 
     - uses: sfesenko/setup-sdkman@c360e935fffb3cfa33eddd5748464329240cfd89 # v1
-    - run: |
-        source ~/.sdkman/bin/sdkman-init.sh
 
     - name: Build
       run: make clean build
@@ -59,6 +56,25 @@ jobs:
 
     - name: Run
       run: make run
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: test-results
+        path: |
+          app/build/test-results/
+          app/build/reports/tests/
+        retention-days: 14
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: coverage-report
+        path: |
+          app/build/reports/jacoco/
+        retention-days: 14
 
   docker:
     needs: build-and-test
