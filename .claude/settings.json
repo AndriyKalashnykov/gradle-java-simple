@@ -14,7 +14,8 @@
       "Bash(git remote:*)",
       "Bash(grep -E '[a-zA-Z\\\\.\\\\-]+:.*?@ .*$' Makefile)",
       "Bash(bash -c 'export SDKMAN_DIR=\"${SDKMAN_DIR:-$HOME/.sdkman}\"; source \"$SDKMAN_DIR/bin/sdkman-init.sh\"; sdk list java 2>/dev/null | grep -i \"sem.*21\"')",
-      "Bash(bash -c 'export SDKMAN_DIR=\"${SDKMAN_DIR:-$HOME/.sdkman}\"; source \"$SDKMAN_DIR/bin/sdkman-init.sh\"; sdk list java 2>/dev/null | grep -i \"sem.*21\" | head -5')"
+      "Bash(bash -c 'export SDKMAN_DIR=\"${SDKMAN_DIR:-$HOME/.sdkman}\"; source \"$SDKMAN_DIR/bin/sdkman-init.sh\"; sdk list java 2>/dev/null | grep -i \"sem.*21\" | head -5')",
+      "Bash(bash -c 'export SDKMAN_DIR=\"${SDKMAN_DIR:-$HOME/.sdkman}\"; source \"$SDKMAN_DIR/bin/sdkman-init.sh\"; sdk list java 2>/dev/null | grep -i \"tem.*21\"')"
     ]
   },
   "experiments": {
