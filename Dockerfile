@@ -1,5 +1,5 @@
 # Build stage - compile the application
-FROM --platform=linux/amd64 gradle:9.4.0-jdk21@sha256:a45bbf6995c17e646e4e0260ca2af53e6ec6424ff9b03896fef3a8ce91a57891 AS builder
+FROM --platform=linux/amd64 gradle:9.4.1-jdk21@sha256:7ca3db170906c970153cd3a576ddb42ec3cedc4e6f1dbb2228547e286fa5c3b4 AS builder
 
 WORKDIR /build
 
@@ -13,7 +13,7 @@ COPY app app
 RUN ./gradlew :app:build -x test -x checkstyleMain -x checkstyleTest
 
 # Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry)
-FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:8e7b0114fefdc11491ed5fe3b5c64248c03896ee17f92a305195cb74eab711d7
+FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:8d7b75cd3691006de922c27ad656d4258af22bdde2911f6769fdc90912d8b28e
 
 WORKDIR /app
 
