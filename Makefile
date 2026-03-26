@@ -94,24 +94,25 @@ coverage-check: coverage-generate
 coverage-open:
 	@$(OPEN_CMD) ./app/build/reports/jacoco/test/html/index.html
 
+#require-docker: @ Verify Docker is installed
 require-docker:
 	@command -v docker >/dev/null 2>&1 || { echo "Error: Docker required. Install: https://docs.docker.com/get-docker/"; exit 1; }
 
 #docker-build: @ Build Docker image
 docker-build: require-docker
-	docker build --load -t $(DOCKER_IMAGE) .
-	docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
+	@docker build --load -t $(DOCKER_IMAGE) .
+	@docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
 
 #docker-run: @ Run Docker image
 docker-run: require-docker
-	docker run --rm $(DOCKER_IMAGE)
+	@docker run --rm $(DOCKER_IMAGE)
 
 #docker-image: @ Build and run Docker image
 docker-image: docker-build docker-run
 
 #docker-push: @ Push Docker image to registry
 docker-push: docker-build
-	docker push $(DOCKER_FULL_IMAGE)
+	@docker push $(DOCKER_FULL_IMAGE)
 
 #stop-gradle: @ Stop all Gradle daemons
 stop-gradle:
