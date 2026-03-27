@@ -1,15 +1,17 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-GRADLE      := ./gradlew
+APP_NAME    := gradle-java-fips-test
+GRADLE      := gradle
 NO_CACHE    := --no-configuration-cache
 JAVA_VER    := 21.0.10-sem
 GRADLE_VER  := 9.4.1
 ACT_VERSION := 0.2.86
 NVM_VERSION := 0.40.4
+NODE_VERSION := 22
 CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
-DOCKER_IMAGE      := gradle-java-fips-test
+DOCKER_IMAGE      := $(APP_NAME)
 DOCKER_REGISTRY   ?= docker.io
 DOCKER_REPO       ?= $(shell whoami)/$(DOCKER_IMAGE)
 DOCKER_TAG        ?= latest
@@ -22,31 +24,28 @@ help:
 	@echo -e "Usage: make COMMAND\n\nCommands :\n"
 	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
 
-#deps: @ Verify and install required build dependencies
+#deps: @ Verify required build dependencies are available
 deps:
+	@command -v curl >/dev/null 2>&1 || { echo "Error: curl required."; exit 1; }
+	@java -version 2>&1 | grep -q "\"21\." || { echo "Error: Java 21 required. Run: make deps-check"; exit 1; }
+	@command -v $(GRADLE) >/dev/null 2>&1 || { echo "Error: Gradle required. Run: make deps-check"; exit 1; }
+
+#deps-check: @ Install Java and Gradle via SDKMAN
+deps-check:
 	@bash -c '\
 	  set -eo pipefail; \
-	  ok()   { printf "\033[32m[OK]\033[0m    %s\n" "$$1"; }; \
-	  warn() { printf "\033[33m[WARN]\033[0m  %s\n" "$$1"; }; \
-	  fail() { printf "\033[31m[FAIL]\033[0m  %s\n" "$$1"; exit 1; }; \
-	  command -v curl >/dev/null 2>&1 && ok "curl" || fail "curl not found"; \
-	  if command -v java >/dev/null 2>&1 && java -version 2>&1 | grep -q "\"21\."; then \
-	    ok "Java 21 (system)"; \
+	  export SDKMAN_DIR="$${SDKMAN_DIR:-$$HOME/.sdkman}"; \
+	  if [[ -s "$$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then \
+	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; \
 	  else \
-	    export SDKMAN_DIR="$${SDKMAN_DIR:-$$HOME/.sdkman}"; \
-	    if [[ -s "$$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then \
-	      source "$$SDKMAN_DIR/bin/sdkman-init.sh"; ok "SDKMAN"; \
-	    else \
-	      warn "SDKMAN not found -- installing..."; \
-	      curl -s "https://get.sdkman.io?rcupdate=false" | bash; \
-	      source "$$SDKMAN_DIR/bin/sdkman-init.sh"; ok "SDKMAN installed"; \
-	    fi; \
-	    export SDKMAN_AUTO_ANSWER=true; \
-	    sdk install java "$(JAVA_VER)" 2>/dev/null || true; sdk use java "$(JAVA_VER)"; ok "Java $(JAVA_VER)"; \
-	    sdk install gradle "$(GRADLE_VER)" 2>/dev/null || true; sdk use gradle "$(GRADLE_VER)"; ok "Gradle $(GRADLE_VER)"; \
+	    echo "Installing SDKMAN..."; \
+	    curl -s "https://get.sdkman.io?rcupdate=false" | bash; \
+	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; \
 	  fi; \
-	  [[ -x "./gradlew" ]] && ok "Gradle wrapper" || fail "Gradle wrapper (gradlew) not found"; \
-	  command -v docker >/dev/null 2>&1 && ok "Docker (optional)" || warn "Docker not found (needed for image-* targets)"; \
+	  export SDKMAN_AUTO_ANSWER=true; \
+	  sdk install java "$(JAVA_VER)" 2>/dev/null || true; sdk use java "$(JAVA_VER)"; \
+	  sdk install gradle "$(GRADLE_VER)" 2>/dev/null || true; sdk use gradle "$(GRADLE_VER)"; \
+	  echo "Done. Open a new terminal or run: source $$SDKMAN_DIR/bin/sdkman-init.sh"; \
 	'
 
 #clean: @ Clean build artifacts
@@ -95,17 +94,22 @@ coverage-check: coverage-generate
 coverage-open:
 	@$(OPEN_CMD) ./app/build/reports/jacoco/test/html/index.html
 
-require-docker:
+#deps-docker: @ Ensure Docker is installed
+deps-docker:
 	@command -v docker >/dev/null 2>&1 || { echo "Error: Docker required. Install: https://docs.docker.com/get-docker/"; exit 1; }
 
 #image-build: @ Build Docker image
-image-build: require-docker
+image-build: deps-docker
 	@docker buildx build --load -t $(DOCKER_IMAGE) .
 	@docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
 
 #image-run: @ Run Docker image
-image-run: require-docker
-	@docker run --rm $(DOCKER_IMAGE)
+image-run: deps-docker
+	@docker run --rm --name $(APP_NAME) $(DOCKER_IMAGE)
+
+#image-stop: @ Stop running Docker container
+image-stop:
+	@docker stop $(APP_NAME) 2>/dev/null || true
 
 #image-build-run: @ Build and run Docker image
 image-build-run: image-build image-run
@@ -131,7 +135,7 @@ renovate-bootstrap:
 	    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v$(NVM_VERSION)/install.sh | bash; \
 	  else echo "nvm already installed"; fi; \
 	  [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
-	  nvm install --lts; nvm use --lts; \
+	  nvm install $(NODE_VERSION); nvm use $(NODE_VERSION); \
 	'
 
 #renovate-validate: @ Validate Renovate configuration
@@ -173,8 +177,8 @@ release:
 		echo "$$newtag" | grep -qE "^v[0-9]+\.[0-9]+\.[0-9]+$$" || { echo "Error: Tag must match vN.N.N"; exit 1; } && \
 		echo -n "Create and push $$newtag? [y/N] " && read ans && [ "$${ans:-N}" = y ] && \
 		echo $$newtag > ./version.txt && \
-		git add -A && \
-		git commit -a -s -m "Cut $$newtag release" && \
+		git add ./version.txt && \
+		git commit -s -m "Cut $$newtag release" && \
 		git tag $$newtag && \
 		git push origin $$newtag && \
 		git push && \
@@ -186,9 +190,9 @@ tmux-session:
 	@tmux send-keys -t gradle-fips-test "claude" C-m
 	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
 
-.PHONY: help deps clean build lint test run \
+.PHONY: help deps deps-check clean build lint test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
-	require-docker image-build image-run image-build-run image-push \
+	deps-docker image-build image-run image-stop image-build-run image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
 	deps-act ci ci-run ci-docker release tmux-session

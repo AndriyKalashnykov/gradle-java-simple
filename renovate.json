@@ -2,21 +2,24 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:best-practices",
-    ":label(dependencies)",
-    ":semanticCommitType(chore)",
-    "docker:pinDigests",
-    "helpers:pinGitHubActionDigests",
-    ":dependencyDashboard",
-    "replacements:all",
-    "workarounds:all"
+    ":semanticCommitType(chore)"
   ],
+  "commitMessagePrefix": "chore(all): ",
+  "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
-  "automerge": true,
-  "automergeType": "pr",
-  "platformAutomerge": true,
+  "labels": ["dependencies"],
   "prConcurrentLimit": 50,
   "prHourlyLimit": 0,
-  "minimumReleaseAge": "3 days",
+  "platformAutomerge": true,
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "ignoreTests": false,
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": true,
+    "minimumReleaseAge": "0 days"
+  },
   "packageRules": [
     {
       "description": "Group all non-major updates and automerge after checks pass",
@@ -24,10 +27,15 @@
       "groupName": "all non-major"
     },
     {
-      "description": "Major updates: separate PRs, longer stabilization before automerge",
+      "description": "Wait 3 days before automerging major updates",
       "matchUpdateTypes": ["major"],
       "groupName": "major updates",
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Group GitHub Actions into one PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
     },
     {
       "description": "Pin actions/upload-artifact to v4 — v7 ESM migration breaks act, upgrade incrementally (v5→v6→v7) and test each with make ci-run",
