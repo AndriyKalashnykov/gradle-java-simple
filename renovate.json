@@ -30,10 +30,10 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Pin actions/upload-artifact to v5 until v7+ is verified working",
+      "description": "Pin actions/upload-artifact to v4 — v7 ESM migration breaks act, upgrade incrementally (v5→v6→v7) and test each with make ci-run",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["actions/upload-artifact"],
-      "allowedVersions": "<=5",
+      "allowedVersions": "<=4",
       "automerge": false
     }
   ]
