@@ -23,7 +23,7 @@ The current Makefile has **critical correctness bugs**, **massive redundancy** (
         cve-check cve-db-update cve-db-purge \
         coverage-generate coverage-check coverage-open \
         docker-build docker-run docker-image docker-push \
-        stop-gradle upgrade bootstrap-renovate validate-renovate \
+        gradle-stop upgrade renovate-bootstrap renovate-validate \
         ci ci-docker tmux-session
 ```
 
@@ -102,10 +102,10 @@ check-env:
 .SHELLFLAGS := -eu -o pipefail -c
 ```
 
-### 1.4 Fix `stop-gradle` Silent Failure (Line 176)
+### 1.4 Fix `gradle-stop` Silent Failure (Line 176)
 
 ```makefile
-stop-gradle:
+gradle-stop:
 	@$(GRADLE) --stop
 	@pkill -f '.*GradleDaemon.*' || true
 ```
@@ -284,9 +284,9 @@ Hardcoded `--dangerously-skip-permissions` (line 222). Options:
 - Add confirmation prompt
 - Make it opt-in: `UNSAFE ?= 0`
 
-### 5.3 Fix `bootstrap-renovate` / `validate-renovate` Subshell Issue
+### 5.3 Fix `renovate-bootstrap` / `renovate-validate` Subshell Issue
 
-nvm sourced in `bootstrap-renovate` is invisible to `validate-renovate` because they run in separate subshells. Combine into single target or use `bash -c` block.
+nvm sourced in `renovate-bootstrap` is invisible to `renovate-validate` because they run in separate subshells. Combine into single target or use `bash -c` block.
 
 ### 5.4 Add `NVD_API_KEY` Check to `cve-check`
 
@@ -310,7 +310,7 @@ Coverage targets:  ~10 lines  (generate, check, open)
 CVE targets:       ~10 lines  (check, db-update, db-purge)
 Docker targets:    ~15 lines  (require-docker, build, run, image, push)
 CI targets:        ~15 lines  (ci, ci-docker)
-Utility targets:   ~15 lines  (stop-gradle, upgrade, renovate, tmux)
+Utility targets:   ~15 lines  (gradle-stop, upgrade, renovate, tmux)
 ─────────────────────────────
 Total:             ~155 lines (down from 223)
 ```

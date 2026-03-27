@@ -78,8 +78,8 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-pu
 | Target | Description |
 |--------|-------------|
 | `make upgrade` | Check for dependency updates |
-| `make stop-gradle` | Stop all Gradle daemons |
-| `make validate-renovate` | Validate Renovate config (needs nvm; `make bootstrap-renovate` to install) |
+| `make gradle-stop` | Stop all Gradle daemons |
+| `make renovate-validate` | Validate Renovate config (needs nvm; `make renovate-bootstrap` to install) |
 
 ## Project Structure
 

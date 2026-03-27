@@ -114,16 +114,16 @@ image-build-run: image-build image-run
 image-push: image-build
 	@docker push $(DOCKER_FULL_IMAGE)
 
-#stop-gradle: @ Stop all Gradle daemons
-stop-gradle:
+#gradle-stop: @ Stop all Gradle daemons
+gradle-stop:
 	@$(GRADLE) --stop
 
 #upgrade: @ Check for dependency updates
 upgrade:
 	@$(GRADLE) :app:dependencyUpdates $(NO_CACHE)
 
-#bootstrap-renovate: @ Install nvm and npm for renovate
-bootstrap-renovate:
+#renovate-bootstrap: @ Install nvm and npm for renovate
+renovate-bootstrap:
 	@bash -c '\
 	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
 	  if [ ! -d "$$NVM_DIR" ]; then \
@@ -134,11 +134,11 @@ bootstrap-renovate:
 	  nvm install --lts; nvm use --lts; \
 	'
 
-#validate-renovate: @ Validate Renovate configuration
-validate-renovate:
+#renovate-validate: @ Validate Renovate configuration
+renovate-validate:
 	@bash -c '\
 	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
-	  [ -s "$$NVM_DIR/nvm.sh" ] || { echo "Error: nvm not found. Run: make bootstrap-renovate"; exit 1; }; \
+	  [ -s "$$NVM_DIR/nvm.sh" ] || { echo "Error: nvm not found. Run: make renovate-bootstrap"; exit 1; }; \
 	  . "$$NVM_DIR/nvm.sh"; npx -p renovate -c "renovate-config-validator"; \
 	'
 
@@ -190,5 +190,5 @@ tmux-session:
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
 	require-docker image-build image-run image-build-run image-push \
-	stop-gradle upgrade bootstrap-renovate validate-renovate \
+	gradle-stop upgrade renovate-bootstrap renovate-validate \
 	deps-act ci ci-run ci-docker release tmux-session

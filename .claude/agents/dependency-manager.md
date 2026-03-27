@@ -9,8 +9,8 @@ Manage dependency upgrades, version catalog, and Renovate configuration.
 ## Commands
 
 - Check for updates: `make upgrade` or `./gradlew :app:dependencyUpdates --no-configuration-cache`
-- Validate Renovate config: `make validate-renovate`
-- Bootstrap npm (for Renovate): `make bootstrap-renovate`
+- Validate Renovate config: `make renovate-validate`
+- Bootstrap npm (for Renovate): `make renovate-bootstrap`
 
 ## Version Management
 
@@ -66,8 +66,8 @@ Before upgrading a dependency:
 ## Renovate
 
 - Automated dependency PR bot
-- Config validated with `make validate-renovate`
-- Requires npm (bootstrapped via `make bootstrap-renovate`)
+- Config validated with `make renovate-validate`
+- Requires npm (bootstrapped via `make renovate-bootstrap`)
 
 ## Workflow
 
