@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 APP_NAME    := gradle-java-fips-test
-GRADLE      := gradle
+GRADLE      := ./gradlew
 NO_CACHE    := --no-configuration-cache
 JAVA_VER    := 21.0.10-sem
 GRADLE_VER  := 9.4.1
@@ -28,7 +28,7 @@ help:
 deps:
 	@command -v curl >/dev/null 2>&1 || { echo "Error: curl required."; exit 1; }
 	@java -version 2>&1 | grep -q "\"21\." || { echo "Error: Java 21 required. Run: make deps-check"; exit 1; }
-	@command -v $(GRADLE) >/dev/null 2>&1 || { echo "Error: Gradle required. Run: make deps-check"; exit 1; }
+	@[ -x "$(GRADLE)" ] || { echo "Error: Gradle wrapper (gradlew) not found. Run: make deps-check"; exit 1; }
 
 #deps-check: @ Install Java and Gradle via SDKMAN
 deps-check:

@@ -8,7 +8,7 @@ A Gradle-based Java 21 project used for general-purpose testing, with a focus on
 
 ## Build Commands
 
-All commands use `make` as the primary interface (wraps `gradle`):
+All commands use `make` as the primary interface (wraps `./gradlew`):
 
 | Command | Description |
 |---------|-------------|
@@ -47,17 +47,17 @@ All commands use `make` as the primary interface (wraps `gradle`):
 ### Direct Gradle Commands
 
 ```bash
-gradle clean build                    # Build
-gradle :app:test                      # Run all tests
-gradle :app:test --tests "org.example.AppTest"           # Run single test class
-gradle :app:test --tests "org.example.AppTest.appHasAGreeting"  # Run single test method
-gradle :app:run                       # Run main app (org.example.App)
-gradle jacocoTestReport               # Generate coverage report
-gradle jacocoTestCoverageVerification # Check coverage threshold
-gradle checkstyleMain checkstyleTest  # Run Checkstyle linting
+./gradlew clean build                    # Build
+./gradlew :app:test                      # Run all tests
+./gradlew :app:test --tests "org.example.AppTest"           # Run single test class
+./gradlew :app:test --tests "org.example.AppTest.appHasAGreeting"  # Run single test method
+./gradlew :app:run                       # Run main app (org.example.App)
+./gradlew jacocoTestReport               # Generate coverage report
+./gradlew jacocoTestCoverageVerification # Check coverage threshold
+./gradlew checkstyleMain checkstyleTest  # Run Checkstyle linting
 ```
 
-Note: Gradle configuration cache is enabled by default (`gradle.properties`). Some tasks require `--no-configuration-cache` (e.g., `run`, `dependencyCheckAnalyze`). The Gradle wrapper (`./gradlew`) is available in the repo but the Makefile uses the system `gradle` command installed via SDKMAN.
+Note: Gradle configuration cache is enabled by default (`gradle.properties`). Some tasks require `--no-configuration-cache` (e.g., `run`, `dependencyCheckAnalyze`).
 
 ## Architecture
 
