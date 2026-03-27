@@ -28,6 +28,13 @@
       "matchUpdateTypes": ["major"],
       "groupName": "major updates",
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Pin actions/upload-artifact to v5 until v7+ is verified working",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["actions/upload-artifact"],
+      "allowedVersions": "<=5",
+      "automerge": false
     }
   ]
 }

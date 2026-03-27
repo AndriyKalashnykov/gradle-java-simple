@@ -90,6 +90,8 @@ GitHub Actions (`.github/workflows/ci.yml`):
 - **concurrency**: superseded runs on the same branch are automatically cancelled
 - No sdkman in CI — `deps` detects system Java 21 and skips sdkman installation. JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
 
+**Note:** `actions/upload-artifact` is pinned to v5. The v7 digest previously used was problematic. A Renovate package rule prevents auto-upgrading past v5. Check periodically if newer versions are stable and remove the constraint when verified.
+
 Run CI locally before pushing: `make ci` (mirrors the build-and-test job)
 Run CI with Docker: `make ci-docker`
 Run GitHub Actions locally: `make ci-run` (uses [act](https://github.com/nektos/act))
