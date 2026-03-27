@@ -21,7 +21,7 @@ make run     # runs the app
 |------|----------|-------|
 | [GNU Make](https://www.gnu.org/software/make/) | Yes | Build orchestration |
 | [curl](https://curl.se/) | Yes | sdkman auto-installation |
-| [Docker](https://docs.docker.com/get-docker/) | No | Only for `docker-*` targets |
+| [Docker](https://docs.docker.com/get-docker/) | No | Only for `image-*` targets |
 
 `make deps` (or `make build`) automatically installs [sdkman](https://sdkman.io/install), IBM Semeru 21, and Gradle if missing.
 
@@ -53,15 +53,15 @@ Builds a multi-stage image: Gradle builder + IBM Semeru 21 FIPS runtime (UBI9).
 
 | Target | Description |
 |--------|-------------|
-| `make docker-build` | Build Docker image |
-| `make docker-run` | Run Docker image |
-| `make docker-image` | Build and run |
-| `make docker-push` | Push to registry |
+| `make image-build` | Build Docker image |
+| `make image-run` | Run Docker image |
+| `make image-build-run` | Build and run |
+| `make image-push` | Push to registry |
 
 Configure the push target with environment variables:
 
 ```bash
-DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make docker-push
+DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-push
 ```
 
 ### CI
@@ -69,7 +69,9 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make docker-p
 | Target | Description |
 |--------|-------------|
 | `make ci` | Run full pipeline locally: build, lint, test, coverage, run |
+| `make ci-run` | Run GitHub Actions workflow locally using [act](https://github.com/nektos/act) |
 | `make ci-docker` | Full pipeline + Docker build |
+| `make release` | Create and push a new semver tag |
 
 ### Utilities
 
@@ -96,10 +98,10 @@ app/src/main/java/org/example/
 
 ## CI/CD
 
-GitHub Actions runs two parallel jobs on every push/PR to `main`:
+GitHub Actions runs two jobs on every push/PR to `main`:
 
-1. **build-and-test** — build, lint, test, coverage verification, app run
-2. **docker** — build Docker image (push only on main merge with registry secrets configured)
+1. **build-and-test** — `make build`, `make lint`, `make test`, `make coverage-check`, `make run`
+2. **docker** — build Docker image after build-and-test passes (push only on main merge with registry secrets configured)
 
 [Renovate](https://docs.renovatebot.com/) keeps dependencies up to date with platform automerge enabled.
 

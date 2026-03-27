@@ -8,11 +8,11 @@ Manage Docker operations: build, run, push. Understand the multi-stage Dockerfil
 
 ## Commands
 
-- Build image: `make docker-build`
-- Run image: `make docker-run`
-- Build and run: `make docker-image`
-- Push to registry: `make docker-push`
-- Custom registry: `make docker-push DOCKER_REGISTRY=ghcr.io DOCKER_REPO=user/repo DOCKER_TAG=v1.0`
+- Build image: `make image-build`
+- Run image: `make image-run`
+- Build and run: `make image-build-run`
+- Push to registry: `make image-push`
+- Custom registry: `make image-push DOCKER_REGISTRY=ghcr.io DOCKER_REPO=user/repo DOCKER_TAG=v1.0`
 
 ## Dockerfile Architecture
 
@@ -50,7 +50,7 @@ Excludes: `.git`, `.gradle`, `.idea`, `build`, `app/build`, `*.md`, `.github`, `
 
 ## Workflow
 
-1. Run `make docker-build` to build the image
+1. Run `make image-build` to build the image
 2. Verify with `docker images | grep gradle-java-fips-test`
-3. Run `make docker-run` to test FIPS validation in container
-4. If pushing: `make docker-push DOCKER_REGISTRY=<registry> DOCKER_REPO=<repo>`
+3. Run `make image-run` to test FIPS validation in container
+4. If pushing: `make image-push DOCKER_REGISTRY=<registry> DOCKER_REPO=<repo>`

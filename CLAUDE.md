@@ -23,12 +23,14 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make coverage-open` | Open coverage report in browser |
 | `make cve-check` | OWASP dependency vulnerability scan (needs `NVD_API_KEY` env var) |
 | `make ci` | Run full CI pipeline locally (mirrors GitHub Actions) |
+| `make ci-run` | Run GitHub Actions workflow locally using act |
 | `make ci-docker` | Run full CI pipeline including Docker build |
-| `make docker-build` | Build Docker image only |
-| `make docker-run` | Run Docker image |
-| `make docker-image` | Build and run Docker image |
-| `make docker-push` | Push Docker image to registry |
+| `make image-build` | Build Docker image |
+| `make image-run` | Run Docker image |
+| `make image-build-run` | Build and run Docker image |
+| `make image-push` | Push Docker image to registry |
 | `make upgrade` | Check for dependency updates |
+| `make release` | Create and push a new semver tag |
 
 **Target design:** Individual targets (`test`, `run`, `lint`, etc.) are self-contained and do not cascade through deep dependency chains. The `ci` target orchestrates the full pipeline as a linear sequence. Only `build` depends on `deps`; other targets assume the environment is already set up (or Gradle handles compilation internally).
 
@@ -69,10 +71,10 @@ Single-module Gradle project (`app/`) with standard Java layout:
 Multi-stage build: Gradle builder stage + IBM Semeru 21 FIPS-enabled runtime (`ubi9`). Runs `FIPSValidatorRunner` as entry point.
 
 ```bash
-make docker-build   # Build image only
-make docker-run     # Run existing image
-make docker-image   # Build and run
-make docker-push    # Push to registry
+make image-build      # Build image
+make image-run        # Run existing image
+make image-build-run  # Build and run
+make image-push       # Push to registry
 ```
 
 Configure push target with environment variables:
@@ -83,13 +85,14 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **build-and-test** job: single `./gradlew clean build jacocoTestCoverageVerification` invocation (build + lint + test + coverage), then runs the app
-- **docker** job: builds Docker image **in parallel** with build-and-test, conditionally pushes on main branch merge
+- **build-and-test** job: sequential `make build`, `make lint`, `make test`, `make coverage-check`, `make run` steps
+- **docker** job: builds Docker image **after** build-and-test passes (`needs: build-and-test`), conditionally pushes on main branch merge
 - **concurrency**: superseded runs on the same branch are automatically cancelled
-- No sdkman in CI — JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
+- No sdkman in CI — `deps` detects system Java 21 and skips sdkman installation. JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
 
 Run CI locally before pushing: `make ci` (mirrors the build-and-test job)
 Run CI with Docker: `make ci-docker`
+Run GitHub Actions locally: `make ci-run` (uses [act](https://github.com/nektos/act))
 
 ## Claude Code Agent Team
 
