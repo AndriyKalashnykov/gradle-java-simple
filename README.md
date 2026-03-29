@@ -114,7 +114,7 @@ app/src/main/java/org/example/
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `v*`, and pull requests:
 
-1. **build-and-test** — `make build`, `make lint`, `make test`, `make coverage-check`, `make run`
+1. **build-and-test** — `make lint`, `make test`, `make coverage-check`, `make build`, `make run`
 2. **docker** — tag-gated (`if: startsWith(github.ref, 'refs/tags/')`) — builds and pushes Docker image after build-and-test passes (requires registry variables/secrets)
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs (retains 7 days, minimum 5 runs).

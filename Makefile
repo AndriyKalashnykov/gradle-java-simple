@@ -154,11 +154,11 @@ deps-act: deps
 
 #ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
 ci: deps
-	@echo "=== CI Step 1/5: Build ===" && $(GRADLE) clean build
-	@echo "=== CI Step 2/5: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest
-	@echo "=== CI Step 3/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
+	@echo "=== CI Step 1/5: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest
+	@echo "=== CI Step 2/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
-	@echo "=== CI Step 4/5: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
+	@echo "=== CI Step 3/5: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
+	@echo "=== CI Step 4/5: Build ===" && $(GRADLE) clean build
 	@echo "=== CI Step 5/5: Run ===" && $(GRADLE) :app:run $(NO_CACHE) --warning-mode all
 	@echo "=== CI Complete ==="
 

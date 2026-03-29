@@ -95,7 +95,7 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **build-and-test** job: sequential `make build`, `make lint`, `make test`, `make coverage-check`, `make run` steps
+- **build-and-test** job: sequential `make lint`, `make test`, `make coverage-check`, `make build`, `make run` steps
 - **docker** job: tag-gated (`if: startsWith(github.ref, 'refs/tags/')`), builds and pushes Docker image **after** build-and-test passes (`needs: build-and-test`)
 - **concurrency**: superseded runs on the same branch are automatically cancelled
 - No sdkman in CI — `deps` checks for system Java 21 and `gradle` (both provided by actions). JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
