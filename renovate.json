@@ -4,6 +4,7 @@
     "config:best-practices",
     ":semanticCommitType(chore)"
   ],
+  "enabledManagers": ["gradle", "gradle-wrapper", "dockerfile", "docker-compose", "github-actions"],
   "commitMessagePrefix": "chore(all): ",
   "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
@@ -43,6 +44,30 @@
       "matchPackageNames": ["actions/upload-artifact"],
       "allowedVersions": "<=4",
       "automerge": false
+    },
+    {
+      "description": "Label Java packages",
+      "matchCategories": ["java"],
+      "addLabels": ["lang: java"]
+    },
+    {
+      "description": "Group Apache Commons dependencies into one PR",
+      "groupName": "Apache commons",
+      "matchPackageNames": [
+        "commons-io:commons-io",
+        "org.apache.commons:*"
+      ]
+    },
+    {
+      "description": "Group annotation libraries",
+      "groupName": "annotations",
+      "matchPackageNames": [
+        "com.google.errorprone:*",
+        "net.jcip:jcip-annotations",
+        "org.checkerframework:checker-qual",
+        "org.jetbrains:annotations",
+        "org.jspecify:jspecify"
+      ]
     }
   ]
 }
