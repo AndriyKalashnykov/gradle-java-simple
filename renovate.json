@@ -4,51 +4,80 @@
     "config:best-practices",
     ":semanticCommitType(chore)"
   ],
-  "enabledManagers": ["gradle", "gradle-wrapper", "dockerfile", "docker-compose", "github-actions"],
+  "enabledManagers": [
+    "gradle",
+    "gradle-wrapper",
+    "dockerfile",
+    "docker-compose",
+    "github-actions"
+  ],
   "commitMessagePrefix": "chore(all): ",
   "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "prConcurrentLimit": 50,
   "prHourlyLimit": 0,
   "platformAutomerge": true,
   "automerge": true,
-  "automergeType": "pr",
+  "automergeType": "branch",
   "automergeStrategy": "squash",
   "ignoreTests": false,
   "vulnerabilityAlerts": {
-    "labels": ["security"],
+    "labels": [
+      "security"
+    ],
     "automerge": true,
     "minimumReleaseAge": "0 days"
   },
   "packageRules": [
     {
       "description": "Group all non-major updates and automerge after checks pass",
-      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "lockFileMaintenance"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "lockFileMaintenance"
+      ],
       "groupName": "all non-major"
     },
     {
       "description": "Wait 3 days before automerging major updates",
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "groupName": "major updates",
       "minimumReleaseAge": "3 days"
     },
     {
       "description": "Group GitHub Actions into one PR",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "GitHub Actions"
     },
     {
       "description": "Pin actions/upload-artifact to v4 — v7 ESM migration breaks act, upgrade incrementally (v5→v6→v7) and test each with make ci-run",
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["actions/upload-artifact"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "actions/upload-artifact"
+      ],
       "allowedVersions": "<=4",
       "automerge": false
     },
     {
       "description": "Label Java packages",
-      "matchCategories": ["java"],
-      "addLabels": ["lang: java"]
+      "matchCategories": [
+        "java"
+      ],
+      "addLabels": [
+        "lang: java"
+      ]
     },
     {
       "description": "Group Apache Commons dependencies into one PR",
@@ -68,6 +97,13 @@
         "org.jetbrains:annotations",
         "org.jspecify:jspecify"
       ]
+    },
+    {
+      "description": "Group Docker base images",
+      "matchDatasources": [
+        "docker"
+      ],
+      "groupName": "Docker dependencies"
     }
   ]
 }
