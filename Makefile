@@ -6,7 +6,7 @@ GRADLE      := ./gradlew
 NO_CACHE    := --no-configuration-cache
 JAVA_VER    := 21.0.10-sem
 GRADLE_VER  := 9.4.1
-ACT_VERSION := 0.2.86
+ACT_VERSION := 0.2.87
 NVM_VERSION := 0.40.4
 NODE_VERSION := 22
 CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
