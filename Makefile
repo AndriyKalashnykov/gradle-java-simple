@@ -4,11 +4,11 @@ SHELL := /bin/bash
 APP_NAME    := gradle-java-fips-test
 GRADLE      := ./gradlew
 NO_CACHE    := --no-configuration-cache
-JAVA_VER    := 21.0.10-sem
-GRADLE_VER  := 9.4.1
-ACT_VERSION := 0.2.87
-NVM_VERSION := 0.40.4
-NODE_VERSION := 22
+JAVA_VER    := 21.0.10.1-sem  # derive: sdk list java | grep sem
+GRADLE_VER  := 9.4.1       # derive: sdk list gradle
+ACT_VERSION := 0.2.87      # derive: gh api repos/nektos/act/releases/latest --jq '.tag_name'
+NVM_VERSION := 0.40.4      # derive: gh api repos/nvm-sh/nvm/releases/latest --jq '.tag_name'
+NODE_VERSION := 22          # derive: node --version (major only)
 CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
 DOCKER_IMAGE      := $(APP_NAME)
@@ -57,33 +57,33 @@ build: deps
 	@$(GRADLE) build
 
 #lint: @ Run Java code style checks (Checkstyle)
-lint:
+lint: deps
 	@$(GRADLE) checkstyleMain checkstyleTest
 
 #test: @ Run project tests
-test:
+test: deps
 	@$(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
 
 #run: @ Run project
-run:
+run: deps
 	@$(GRADLE) :app:run $(NO_CACHE) --warning-mode all
 
 #cve-check: @ Run OWASP dependency vulnerability scan (needs NVD_API_KEY)
-cve-check:
+cve-check: deps
 	@[ -n "$${NVD_API_KEY:-}" ] || echo "Warning: NVD_API_KEY not set"
 	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all
 
 #cve-db-update: @ Update vulnerability database manually
-cve-db-update:
+cve-db-update: deps
 	@$(GRADLE) dependencyCheckUpdate $(NO_CACHE)
 
 #cve-db-purge: @ Purge local database (forces fresh download)
-cve-db-purge:
+cve-db-purge: deps
 	@$(GRADLE) dependencyCheckPurge $(NO_CACHE)
 
 #coverage-generate: @ Run tests with coverage report
-coverage-generate:
+coverage-generate: deps
 	@$(GRADLE) test jacocoTestReport
 
 #coverage-check: @ Verify code coverage meets minimum threshold (> 60%)
@@ -99,7 +99,7 @@ deps-docker:
 	@command -v docker >/dev/null 2>&1 || { echo "Error: Docker required. Install: https://docs.docker.com/get-docker/"; exit 1; }
 
 #image-build: @ Build Docker image
-image-build: deps-docker
+image-build: deps-docker build
 	@docker buildx build --load -t $(DOCKER_IMAGE) .
 	@docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
 
@@ -123,7 +123,7 @@ gradle-stop:
 	@$(GRADLE) --stop
 
 #upgrade: @ Check for dependency updates
-upgrade:
+upgrade: deps
 	@$(GRADLE) :app:dependencyUpdates $(NO_CACHE)
 
 #renovate-bootstrap: @ Install nvm and npm for renovate
@@ -139,7 +139,7 @@ renovate-bootstrap:
 	'
 
 #renovate-validate: @ Validate Renovate configuration
-renovate-validate:
+renovate-validate: renovate-bootstrap
 	@bash -c '\
 	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
 	  [ -s "$$NVM_DIR/nvm.sh" ] || { echo "Error: nvm not found. Run: make renovate-bootstrap"; exit 1; }; \

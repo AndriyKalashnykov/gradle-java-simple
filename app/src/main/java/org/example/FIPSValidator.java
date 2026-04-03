@@ -63,7 +63,7 @@ public class FIPSValidator {
     public void printFIPSProviders() {
         System.out.println("Security Providers:");
         for (Provider provider : Security.getProviders()) {
-            System.out.println("  - " + provider.getName() + " (v" + provider.getVersion() + ")");
+            System.out.println("  - " + provider.getName() + " (v" + provider.getVersionStr() + ")");
             if (provider.getName().toLowerCase().contains("fips")) {
                 System.out.println("    [FIPS Provider Detected]");
             }

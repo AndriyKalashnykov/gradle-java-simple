@@ -16,7 +16,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make deps` | Verify required build dependencies are available |
 | `make deps-check` | Install Java and Gradle via SDKMAN |
 | `make build` | Build project (runs `deps` first) |
-| `make test` | Run FIPSValidatorTest specifically |
+| `make test` | Run project tests |
 | `make run` | Run the app |
 | `make clean` | Clean build artifacts |
 | `make lint` | Run Java code style checks (Checkstyle) |
@@ -42,7 +42,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make release` | Create and push a new tag |
 | `make tmux-session` | Launch tmux session with Claude |
 
-**Target design:** `deps` checks that tools are available (fails fast with instructions to run `deps-check` if missing). Individual targets (`test`, `run`, `lint`, etc.) are self-contained and do not cascade through deep dependency chains. The `ci` target orchestrates the full pipeline as a linear sequence. Only `build` depends on `deps`; other targets assume the environment is already set up (or Gradle handles compilation internally).
+**Target design:** `deps` checks that tools are available (fails fast with instructions to run `deps-check` if missing). All targets that invoke Gradle depend on `deps` for reliable error messages on a fresh checkout. The `ci` target orchestrates the full pipeline as a linear sequence. `image-build` depends on both `deps-docker` and `build`. `renovate-validate` depends on `renovate-bootstrap`.
 
 ### Direct Gradle Commands
 
@@ -78,7 +78,7 @@ Single-module Gradle project (`app/`) with standard Java layout:
 
 ## Docker
 
-Multi-stage build: Gradle builder stage + IBM Semeru 21 FIPS-enabled runtime (`ubi9`). Runs `FIPSValidatorRunner` as entry point.
+Multi-stage build: Gradle builder stage (uses `installDist` to produce only the app JAR + dependency JARs) + IBM Semeru 21 FIPS-enabled runtime (`ubi9`). Runs `FIPSValidatorRunner` as entry point. Only `/app/lib/*.jar` is copied to the runtime image — no Gradle cache bloat.
 
 ```bash
 make image-build      # Build image
@@ -95,16 +95,18 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **build-and-test** job: sequential `make lint`, `make test`, `make coverage-check`, `make build`, `make run` steps
-- **docker** job: tag-gated (`if: startsWith(github.ref, 'refs/tags/')`), builds and pushes Docker image **after** build-and-test passes (`needs: build-and-test`)
+- **static-check** job: `make lint` — runs first (cheapest, fail-fast)
+- **build** job: `make build`, `make run` — runs after static-check passes (`needs: [static-check]`)
+- **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check (`needs: [static-check]`)
+- **docker** job: tag-gated (`if: startsWith(github.ref, 'refs/tags/')`), builds and pushes Docker image after build and test pass (`needs: [build, test]`)
 - **concurrency**: superseded runs on the same branch are automatically cancelled
 - No sdkman in CI — `deps` checks for system Java 21 and `gradle` (both provided by actions). JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
 
 Cleanup workflow (`.github/workflows/cleanup-runs.yml`): weekly cron that deletes old workflow runs (retains 7 days, minimum 5 runs).
 
-**Note:** `actions/upload-artifact` is pinned to v4 (v4.6.2, hash `ea165f8d`). v7's ESM migration breaks `act` local CI. A Renovate package rule prevents auto-upgrading past v4. To upgrade, test incrementally (v5→v6→v7) with `make ci-run` and update the constraint when verified.
+**Note:** `actions/upload-artifact` is at v7 (hash `bbbca2dd`). Artifact uploads fail locally in act (protocol mismatch with act's artifact server), but `continue-on-error: true` ensures jobs still pass. Artifacts upload correctly on real GitHub Actions.
 
-Run CI locally before pushing: `make ci` (mirrors the build-and-test job)
+Run CI locally before pushing: `make ci` (mirrors the static-check → build → test pipeline)
 Run CI with Docker: `make ci-docker`
 Run GitHub Actions locally: `make ci-run` (uses [act](https://github.com/nektos/act))
 
@@ -126,6 +128,16 @@ Specialized agents in `.claude/agents/` for development tasks:
 | Devil's Advocate | `devils-advocate.md` | Challenge decisions, probe conclusions, research alternatives, compile risks |
 
 Teams mode enabled in `.claude/settings.json`. Agents can run in parallel for independent tasks.
+
+## Upgrade Backlog
+
+Deferred upgrade items from analysis on 2026-04-03. Review periodically — resolve actionable items, remove stale ones.
+
+- [ ] **FIPS profile hard expiry 2026-09-21** — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Updated to 21.0.10.1-sem but expiry unchanged — need a future Semeru release from IBM. Check: `make run` output for expiry warning.
+- [x] ~~**upload-artifact v4 → v7 migration**~~ — Completed 2026-04-03. Tested v5 (full act support), v6 (auth error in act), v7 (protocol mismatch in act). All pass with `continue-on-error: true`. Removed Renovate pin constraint.
+- [ ] **`JAVA_VER` not tracked by Renovate** — SDKMAN version format (`21.0.10.1-sem`) has no Renovate datasource. Must manually check for Semeru JDK updates via `sdk list java | grep sem`.
+- [ ] **commons-math3 stale since 2016** — Used only as OWASP test dependency. No replacement on Maven Central (commons-math4 not released). Monitor `https://github.com/apache/commons-math` for releases.
+- [ ] **Gradle 10 compatibility** — ben-manes versions plugin triggers deprecation warning. Watch for plugin update. Check: `./gradlew dependencyUpdates --warning-mode all`.
 
 ## Skills
 

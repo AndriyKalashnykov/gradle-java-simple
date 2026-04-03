@@ -9,32 +9,21 @@ COPY gradlew gradlew.bat gradle.properties settings.gradle ./
 COPY dependency-check-suppressions.xml ./
 COPY app app
 
-# Build the application
-RUN ./gradlew :app:build -x test -x checkstyleMain -x checkstyleTest
+# Build the application distribution (classes + dependency JARs)
+RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 
 # Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry)
 FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:3b298a5b10dccc898076b0d39ba9a24832100f65750f3a137b263fe516c26ad6
 
 WORKDIR /app
 
-USER root
-
-# Copy compiled classes and dependencies
-COPY --from=builder /build/app/build/classes/java/main /app/classes
-COPY --from=builder /build/app/build/libs /app/libs
-COPY --from=builder /root/.gradle/caches /root/.gradle/caches
+# Copy application distribution (app JAR + dependency JARs only)
+COPY --from=builder /build/app/build/install/app/lib /app/lib
 
 USER 1001
 
 # Set FIPS mode
 ENV JAVA_OPTS="-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3"
 
-# Build classpath and run FIPSValidatorRunner
-CMD CLASSPATH="/app/classes"; \
-    for jar in $(find /root/.gradle/caches/modules-2/files-2.1 -name "*.jar" 2>/dev/null); do \
-        CLASSPATH="$CLASSPATH:$jar"; \
-    done; \
-    java -Dsemeru.fips=true \
-         -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3 \
-         -cp "$CLASSPATH" \
-         org.example.FIPSValidatorRunner
+# Run FIPSValidatorRunner with FIPS configuration
+CMD ["java", "-Dsemeru.fips=true", "-Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3", "-cp", "/app/lib/*", "org.example.FIPSValidatorRunner"]

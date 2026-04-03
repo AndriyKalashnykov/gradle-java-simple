@@ -27,6 +27,14 @@ version = "${appArtefactVersion}"
 java.sourceCompatibility = JavaVersion.VERSION_21
 java.targetCompatibility = JavaVersion.VERSION_21
 
+compileJava {
+    options.compilerArgs.addAll(['-Xlint:all', '-Werror'])
+}
+
+compileTestJava {
+    options.compilerArgs.addAll(['-Xlint:all', '-Werror'])
+}
+
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()

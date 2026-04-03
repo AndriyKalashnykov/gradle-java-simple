@@ -9,10 +9,10 @@
     "gradle-wrapper",
     "dockerfile",
     "docker-compose",
-    "github-actions"
+    "github-actions",
+    "custom.regex"
   ],
   "commitMessagePrefix": "chore(all): ",
-  "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
   "labels": [
     "dependencies"
@@ -31,6 +31,50 @@
     "automerge": true,
     "minimumReleaseAge": "0 days"
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track act version in Makefile",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": [
+        "ACT_VERSION\\s*:=\\s*(?<currentValue>.*?)\\n"
+      ],
+      "depNameTemplate": "nektos/act",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Track nvm version in Makefile",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": [
+        "NVM_VERSION\\s*:=\\s*(?<currentValue>.*?)\\n"
+      ],
+      "depNameTemplate": "nvm-sh/nvm",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Gradle version in Makefile",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": [
+        "GRADLE_VER\\s*:=\\s*(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "gradle",
+      "datasourceTemplate": "gradle-version"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Node.js major version in Makefile",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": [
+        "NODE_VERSION\\s*:=\\s*(?<currentValue>[0-9]+)"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version"
+    }
+  ],
   "packageRules": [
     {
       "description": "Group all non-major updates and automerge after checks pass",
@@ -60,15 +104,11 @@
       "groupName": "GitHub Actions"
     },
     {
-      "description": "Pin actions/upload-artifact to v4 — v7 ESM migration breaks act, upgrade incrementally (v5→v6→v7) and test each with make ci-run",
+      "description": "Group Makefile tool versions",
       "matchManagers": [
-        "github-actions"
+        "custom.regex"
       ],
-      "matchPackageNames": [
-        "actions/upload-artifact"
-      ],
-      "allowedVersions": "<=4",
-      "automerge": false
+      "groupName": "Makefile tools"
     },
     {
       "description": "Label Java packages",
@@ -84,7 +124,7 @@
       "groupName": "Apache commons",
       "matchPackageNames": [
         "commons-io:commons-io",
-        "org.apache.commons:*"
+        "/^org\\.apache\\.commons:/"
       ]
     },
     {

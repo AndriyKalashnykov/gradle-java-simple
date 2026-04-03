@@ -11,15 +11,15 @@ A Gradle-based Java 21 project that validates [FIPS 140-3](https://csrc.nist.gov
 
 ```bash
 make deps-check  # install Java 21 and Gradle via SDKMAN (first time only)
+make deps        # verify required build dependencies are available
 make build       # build the project
 make test        # run tests
-make run         # run the application
 ```
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
+| Tool | Version | Purpose |
+|------|---------|---------|
 | [GNU Make](https://www.gnu.org/software/make/) | 3.81+ | Build orchestration |
 | [curl](https://curl.se/) | any | SDKMAN auto-installation |
 | [SDKMAN](https://sdkman.io/) | latest | Java/Gradle version management |
@@ -112,10 +112,16 @@ app/src/main/java/org/example/
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `v*`, and pull requests:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `v*`, and pull requests.
 
-1. **build-and-test** — `make lint`, `make test`, `make coverage-check`, `make build`, `make run`
-2. **docker** — tag-gated (`if: startsWith(github.ref, 'refs/tags/')`) — builds and pushes Docker image after build-and-test passes (requires registry variables/secrets)
+| Job | Triggers | Steps | `needs:` |
+|-----|----------|-------|----------|
+| **static-check** | push, PR, tags | `make lint` | — |
+| **build** | push, PR, tags | `make build`, `make run` | `static-check` |
+| **test** | push, PR, tags | `make test`, `make coverage-check` | `static-check` |
+| **docker** | tags only | `make image-build`, `make image-push` | `build`, `test` |
+
+`build` and `test` run in parallel after `static-check` passes. The `docker` job only runs on tag pushes (`v*`).
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs (retains 7 days, minimum 5 runs).
 
