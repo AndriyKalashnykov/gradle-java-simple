@@ -60,7 +60,7 @@ build: deps
 lint: deps
 	@$(GRADLE) checkstyleMain checkstyleTest
 
-#test: @ Run project tests
+#test: @ Run FIPS validator tests (FIPSValidatorTest only)
 test: deps
 	@$(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
@@ -146,6 +146,12 @@ renovate-validate: renovate-bootstrap
 	  . "$$NVM_DIR/nvm.sh"; npx -p renovate -c "renovate-config-validator"; \
 	'
 
+#deps-prune: @ Show dependency tree for manual pruning review
+deps-prune: deps
+	@echo "=== Dependency Pruning (Gradle) ==="
+	@$(GRADLE) :app:dependencies --configuration runtimeClasspath
+	@echo "=== Review above for unused or redundant dependencies ==="
+
 #deps-act: @ Install act for local GitHub Actions testing
 deps-act: deps
 	@command -v act >/dev/null 2>&1 || { echo "Installing act $(ACT_VERSION)..."; \
@@ -195,4 +201,4 @@ tmux-session:
 	coverage-generate coverage-check coverage-open \
 	deps-docker image-build image-run image-stop image-build-run image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
-	deps-act ci ci-run ci-docker release tmux-session
+	deps-prune deps-act ci ci-run ci-docker release tmux-session

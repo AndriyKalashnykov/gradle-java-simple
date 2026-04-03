@@ -41,7 +41,7 @@ make deps-check
 | `make deps` | Verify required build dependencies are available |
 | `make deps-check` | Install Java and Gradle via SDKMAN |
 | `make build` | Build project |
-| `make test` | Run project tests |
+| `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
 | `make run` | Run project |
 | `make clean` | Clean build artifacts |
 
@@ -63,6 +63,7 @@ Builds a multi-stage image: Gradle builder + IBM Semeru 21 FIPS runtime (UBI9).
 
 | Target | Description |
 |--------|-------------|
+| `make deps-docker` | Ensure Docker is installed |
 | `make image-build` | Build Docker image |
 | `make image-run` | Run Docker image |
 | `make image-stop` | Stop running Docker container |
@@ -90,6 +91,7 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-pu
 | Target | Description |
 |--------|-------------|
 | `make upgrade` | Check for dependency updates |
+| `make deps-prune` | Show dependency tree for manual pruning review |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make renovate-bootstrap` | Install nvm and npm for renovate |
 | `make renovate-validate` | Validate Renovate configuration |
@@ -121,7 +123,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `
 | **test** | push, PR, tags | `make test`, `make coverage-check` | `static-check` |
 | **docker** | tags only | `make image-build`, `make image-push` | `build`, `test` |
 
-`build` and `test` run in parallel after `static-check` passes. The `docker` job only runs on tag pushes (`v*`).
+`build` and `test` run in parallel after `static-check` passes. The `docker` job only runs on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs (retains 7 days, minimum 5 runs).
 

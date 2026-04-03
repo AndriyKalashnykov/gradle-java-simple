@@ -16,7 +16,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make deps` | Verify required build dependencies are available |
 | `make deps-check` | Install Java and Gradle via SDKMAN |
 | `make build` | Build project (runs `deps` first) |
-| `make test` | Run project tests |
+| `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
 | `make run` | Run the app |
 | `make clean` | Clean build artifacts |
 | `make lint` | Run Java code style checks (Checkstyle) |
@@ -35,6 +35,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make upgrade` | Check for dependency updates |
 | `make renovate-bootstrap` | Install nvm and npm for renovate |
 | `make renovate-validate` | Validate Renovate configuration |
+| `make deps-prune` | Show dependency tree for manual pruning review |
 | `make deps-act` | Install act for local GitHub Actions testing |
 | `make ci` | Run full CI pipeline locally (mirrors GitHub Actions) |
 | `make ci-run` | Run GitHub Actions workflow locally using act |
