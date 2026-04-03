@@ -71,7 +71,7 @@ Single-module Gradle project (`app/`) with standard Java layout:
 
 - **Java 21** (IBM Semeru via sdkman, with toolchain auto-download via foojay-resolver)
 - **JVM args for FIPS**: `-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3` (configured in `application` block; tests run with `-Dsemeru.fips=false`)
-- **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter, Commons Math3) and `gradle.properties` (Commons Lang, plugin versions)
+- **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%
 - **Checkstyle** with custom rules at `config/checkstyle/checkstyle.xml` (120 char line limit, 50 line method limit, 800 line file limit)
 - **OWASP Dependency-Check** fails build on CVSS >= 7.0; suppressions in `dependency-check-suppressions.xml`
@@ -136,7 +136,7 @@ Deferred upgrade items from analysis on 2026-04-03. Review periodically — reso
 - [ ] **FIPS profile hard expiry 2026-09-21** — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Updated to 21.0.10.1-sem but expiry unchanged — need a future Semeru release from IBM. Check: `make run` output for expiry warning.
 - [x] ~~**upload-artifact v4 → v7 migration**~~ — Completed 2026-04-03. Tested v5 (full act support), v6 (auth error in act), v7 (protocol mismatch in act). All pass with `continue-on-error: true`. Removed Renovate pin constraint.
 - [ ] **`JAVA_VER` not tracked by Renovate** — SDKMAN version format (`21.0.10.1-sem`) has no Renovate datasource. Must manually check for Semeru JDK updates via `sdk list java | grep sem`.
-- [ ] **commons-math3 stale since 2016** — Used only as OWASP test dependency. No replacement on Maven Central (commons-math4 not released). Monitor `https://github.com/apache/commons-math` for releases.
+- [x] ~~**commons-math3 stale since 2016**~~ — Resolved 2026-04-03. Removed entirely — was a dead entry in `libs.versions.toml` with no imports in source code.
 - [ ] **Gradle 10 compatibility** — ben-manes versions plugin triggers deprecation warning. Watch for plugin update. Check: `./gradlew dependencyUpdates --warning-mode all`.
 
 ## Skills

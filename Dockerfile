@@ -13,7 +13,7 @@ COPY app app
 RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 
 # Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry)
-FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:3b298a5b10dccc898076b0d39ba9a24832100f65750f3a137b263fe516c26ad6
+FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:d4906d134a4186905fd7a9af774c0c6feeb4eed8237405c6f039044548f94cbf
 
 WORKDIR /app
 

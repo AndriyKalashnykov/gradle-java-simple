@@ -8,7 +8,7 @@ JAVA_VER    := 21.0.10.1-sem  # derive: sdk list java | grep sem
 GRADLE_VER  := 9.4.1       # derive: sdk list gradle
 ACT_VERSION := 0.2.87      # derive: gh api repos/nektos/act/releases/latest --jq '.tag_name'
 NVM_VERSION := 0.40.4      # derive: gh api repos/nvm-sh/nvm/releases/latest --jq '.tag_name'
-NODE_VERSION := 22          # derive: node --version (major only)
+NODE_VERSION := 24          # derive: node --version (major only, Active LTS)
 CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
 DOCKER_IMAGE      := $(APP_NAME)
