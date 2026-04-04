@@ -6,3 +6,11 @@ app/build
 *.md
 .github
 *.log
+.claude
+.vscode
+docs
+TestRunner.java
+renovate.json
+LICENSE
+version.txt
+.gitattributes

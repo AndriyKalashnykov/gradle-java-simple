@@ -116,7 +116,7 @@ dependencyCheck {
     formats = ['HTML', 'JSON', 'XML']
 
     // Directory where reports will be written
-    outputDirectory = file("${layout.buildDirectory.get()}\n/reports/dependency-check")
+    outputDirectory = file("${layout.buildDirectory.get()}/reports/dependency-check")
 
     // Suppress false positives by CVE ID
     suppressionFile = "$rootDir/dependency-check-suppressions.xml"

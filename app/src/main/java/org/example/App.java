@@ -73,7 +73,7 @@ public class App {
     }
 
     public boolean isValidName(String name) {
-        return !StringUtils.isBlank(name) && name.trim().length() > 0;
+        return !StringUtils.isBlank(name);
     }
 
     public String formatMessage(String message, boolean uppercase) {
