@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Build stage - compile the application
 FROM --platform=linux/amd64 gradle:9.4.1-jdk21@sha256:7ca3db170906c970153cd3a576ddb42ec3cedc4e6f1dbb2228547e286fa5c3b4 AS builder
 

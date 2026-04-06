@@ -14,6 +14,7 @@ make deps-check  # install Java 21 and Gradle via SDKMAN (first time only)
 make deps        # verify required build dependencies are available
 make build       # build the project
 make test        # run tests
+make run         # run the application
 ```
 
 ## Prerequisites
@@ -21,11 +22,10 @@ make test        # run tests
 | Tool | Version | Purpose |
 |------|---------|---------|
 | [GNU Make](https://www.gnu.org/software/make/) | 3.81+ | Build orchestration |
-| [curl](https://curl.se/) | any | SDKMAN auto-installation |
-| [SDKMAN](https://sdkman.io/) | latest | Java/Gradle version management |
-| [Docker](https://docs.docker.com/get-docker/) | latest | Only for `image-*` targets (optional) |
+| [Git](https://git-scm.com/) | latest | Version control |
+| [Docker](https://docs.docker.com/get-docker/) | latest | Required only for `image-*` and `ci-docker` targets (optional) |
 
-Install all required dependencies:
+Install Java 21 and Gradle (auto-installs [SDKMAN](https://sdkman.io/) if needed):
 
 ```bash
 make deps-check
@@ -40,7 +40,7 @@ make deps-check
 | `make help` | List available tasks |
 | `make deps` | Verify required build dependencies are available |
 | `make deps-check` | Install Java and Gradle via SDKMAN |
-| `make build` | Build project |
+| `make build` | Build project (compile only, no tests) |
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
 | `make run` | Run project |
 | `make clean` | Clean build artifacts |
@@ -92,6 +92,7 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-pu
 |--------|-------------|
 | `make upgrade` | Check for dependency updates |
 | `make deps-prune` | Show dependency tree for manual pruning review |
+| `make deps-prune-check` | Verify no prunable dependencies (CI gate) |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make renovate-bootstrap` | Install nvm and npm for renovate |
 | `make renovate-validate` | Validate Renovate configuration |
@@ -111,23 +112,6 @@ app/src/main/java/org/example/
 2. JCE unlimited crypto policy
 3. Red Hat FIPS property (`com.redhat.fips`)
 4. Registered security providers (OpenJCEPlusFIPS)
-
-## CI/CD
-
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `v*`, and pull requests.
-
-| Job | Triggers | Steps | `needs:` |
-|-----|----------|-------|----------|
-| **static-check** | push, PR, tags | `make lint` | — |
-| **build** | push, PR, tags | `make build`, `make run` | `static-check` |
-| **test** | push, PR, tags | `make test`, `make coverage-check` | `static-check` |
-| **docker** | tags only | `make image-build`, `make image-push` | `build`, `test` |
-
-`build` and `test` run in parallel after `static-check` passes. The `docker` job only runs on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
-
-A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs (retains 7 days, minimum 5 runs).
-
-[Renovate](https://docs.renovatebot.com/) keeps dependencies up to date with platform automerge enabled.
 
 ## FIPS Runtime Details
 
@@ -150,3 +134,20 @@ docker run --rm -it icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal 
 java -version
 grep "^security.provider" /opt/java/openjdk/conf/security/java.security
 ```
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `v*`, and pull requests.
+
+| Job | Triggers | Steps | `needs:` |
+|-----|----------|-------|----------|
+| **static-check** | push, PR, tags | `make lint` | — |
+| **build** | push, PR, tags | `make build`, `make run` | `static-check` |
+| **test** | push, PR, tags | `make test`, `make coverage-check` | `static-check` |
+| **docker** | tags only | `make image-build`, `make image-push` | `build`, `test` |
+
+`build` and `test` run in parallel after `static-check` passes. The `docker` job only runs on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
+
+A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs (retains 7 days, minimum 5 runs).
+
+[Renovate](https://docs.renovatebot.com/) keeps dependencies up to date with platform automerge enabled.

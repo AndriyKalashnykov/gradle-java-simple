@@ -8,11 +8,11 @@
     "gradle",
     "gradle-wrapper",
     "dockerfile",
-    "docker-compose",
     "github-actions",
     "custom.regex"
   ],
   "commitMessagePrefix": "chore(all): ",
+  "commitMessageAction": "update",
   "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
   "labels": [
     "dependencies"
@@ -131,7 +131,7 @@
       "description": "Group annotation libraries",
       "groupName": "annotations",
       "matchPackageNames": [
-        "com.google.errorprone:*",
+        "/^com\\.google\\.errorprone:/",
         "net.jcip:jcip-annotations",
         "org.checkerframework:checker-qual",
         "org.jetbrains:annotations",

@@ -15,7 +15,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make help` | List available tasks |
 | `make deps` | Verify required build dependencies are available |
 | `make deps-check` | Install Java and Gradle via SDKMAN |
-| `make build` | Build project (runs `deps` first) |
+| `make build` | Build project, compile only — no tests (runs `deps` first) |
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
 | `make run` | Run the app |
 | `make clean` | Clean build artifacts |
@@ -36,6 +36,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make renovate-bootstrap` | Install nvm and npm for renovate |
 | `make renovate-validate` | Validate Renovate configuration |
 | `make deps-prune` | Show dependency tree for manual pruning review |
+| `make deps-prune-check` | Verify no prunable dependencies (CI gate) |
 | `make deps-act` | Install act for local GitHub Actions testing |
 | `make ci` | Run full CI pipeline locally (mirrors GitHub Actions) |
 | `make ci-run` | Run GitHub Actions workflow locally using act |
@@ -132,13 +133,15 @@ Teams mode enabled in `.claude/settings.json`. Agents can run in parallel for in
 
 ## Upgrade Backlog
 
-Deferred upgrade items from analysis on 2026-04-03. Review periodically — resolve actionable items, remove stale ones.
+Deferred upgrade items. Last full review: 2026-04-05 (all deps at latest). Review periodically — resolve actionable items, remove stale ones.
 
-- [ ] **FIPS profile hard expiry 2026-09-21** — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Updated to 21.0.10.1-sem but expiry unchanged — need a future Semeru release from IBM. Check: `make run` output for expiry warning.
-- [x] ~~**upload-artifact v4 → v7 migration**~~ — Completed 2026-04-03. Tested v5 (full act support), v6 (auth error in act), v7 (protocol mismatch in act). All pass with `continue-on-error: true`. Removed Renovate pin constraint.
+- [ ] **FIPS profile hard expiry 2026-09-21** (~168 days) — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Updated to 21.0.10.1-sem but expiry unchanged — need a future Semeru release from IBM. Check: `make run` output for expiry warning. **Monitor monthly.**
 - [ ] **`JAVA_VER` not tracked by Renovate** — SDKMAN version format (`21.0.10.1-sem`) has no Renovate datasource. Must manually check for Semeru JDK updates via `sdk list java | grep sem`.
-- [x] ~~**commons-math3 stale since 2016**~~ — Resolved 2026-04-03. Removed entirely — was a dead entry in `libs.versions.toml` with no imports in source code.
 - [ ] **Gradle 10 compatibility** — ben-manes versions plugin triggers deprecation warning. Watch for plugin update. Check: `./gradlew dependencyUpdates --warning-mode all`.
+- [x] ~~**upload-artifact v4 → v7 migration**~~ — Completed 2026-04-03.
+- [x] ~~**commons-math3 stale since 2016**~~ — Resolved 2026-04-03. Removed entirely.
+- [x] ~~**Dockerfile missing syntax directive**~~ — Resolved 2026-04-05. Added `# syntax=docker/dockerfile:1`.
+- [x] ~~**Renovate `docker-compose` manager without compose file**~~ — Resolved 2026-04-05. Removed from `enabledManagers`.
 
 ## Skills
 

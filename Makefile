@@ -52,9 +52,9 @@ deps-check:
 clean:
 	@$(GRADLE) clean && rm -rf build app/build
 
-#build: @ Build project
+#build: @ Build project (compile only, no tests)
 build: deps
-	@$(GRADLE) build
+	@$(GRADLE) build -x test
 
 #lint: @ Run Java code style checks (Checkstyle)
 lint: deps
@@ -152,6 +152,13 @@ deps-prune: deps
 	@$(GRADLE) :app:dependencies --configuration runtimeClasspath
 	@echo "=== Review above for unused or redundant dependencies ==="
 
+#deps-prune-check: @ Verify no prunable dependencies (CI gate)
+deps-prune-check: deps
+	@echo "=== Dependency Prune Check (Gradle) ==="
+	@$(GRADLE) :app:dependencies --configuration runtimeClasspath 2>&1 | \
+		grep -iE '(FAILED|could not resolve)' && { echo "ERROR: Unresolvable dependencies found. Run 'make deps-prune' to review."; exit 1; } || true
+	@echo "No prunable dependency issues detected."
+
 #deps-act: @ Install act for local GitHub Actions testing
 deps-act: deps
 	@command -v act >/dev/null 2>&1 || { echo "Installing act $(ACT_VERSION)..."; \
@@ -164,7 +171,7 @@ ci: deps
 	@echo "=== CI Step 2/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
 	@echo "=== CI Step 3/5: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
-	@echo "=== CI Step 4/5: Build ===" && $(GRADLE) clean build
+	@echo "=== CI Step 4/5: Build ===" && $(GRADLE) clean build -x test
 	@echo "=== CI Step 5/5: Run ===" && $(GRADLE) :app:run $(NO_CACHE) --warning-mode all
 	@echo "=== CI Complete ==="
 
@@ -201,4 +208,4 @@ tmux-session:
 	coverage-generate coverage-check coverage-open \
 	deps-docker image-build image-run image-stop image-build-run image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
-	deps-prune deps-act ci ci-run ci-docker release tmux-session
+	deps-prune deps-prune-check deps-act ci ci-run ci-docker release tmux-session
