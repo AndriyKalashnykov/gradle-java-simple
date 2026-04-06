@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:4a43a54dd1fedceb30ba47e76cfcf2b47304f4161c0caeac2db1c61804ea3c91
 
 # Build stage - compile the application
 FROM --platform=linux/amd64 gradle:9.4.1-jdk21@sha256:7ca3db170906c970153cd3a576ddb42ec3cedc4e6f1dbb2228547e286fa5c3b4 AS builder
@@ -15,7 +15,7 @@ COPY app app
 RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 
 # Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry)
-FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:d4906d134a4186905fd7a9af774c0c6feeb4eed8237405c6f039044548f94cbf
+FROM --platform=linux/amd64 icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:e8f19758efe9f556c3cf7a658fd5e551f5def2862a9f1b96344625e188f9ed3f
 
 WORKDIR /app
 
