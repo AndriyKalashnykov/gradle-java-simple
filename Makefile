@@ -4,11 +4,18 @@ SHELL := /bin/bash
 APP_NAME    := gradle-java-fips-test
 GRADLE      := ./gradlew
 NO_CACHE    := --no-configuration-cache
-JAVA_VER    := 21.0.10.1-sem  # derive: sdk list java | grep sem
+JAVA_VER    := 21.0.10.1-sem  # derive: sdk list java | grep sem (no Renovate datasource for SDKMAN format)
+# renovate: datasource=gradle-version depName=gradle
 GRADLE_VER  := 9.4.1       # derive: sdk list gradle
+# renovate: datasource=github-releases depName=nektos/act extractVersion=^v(?<version>.*)$
 ACT_VERSION := 0.2.87      # derive: gh api repos/nektos/act/releases/latest --jq '.tag_name'
+# renovate: datasource=github-releases depName=nvm-sh/nvm extractVersion=^v(?<version>.*)$
 NVM_VERSION := 0.40.4      # derive: gh api repos/nvm-sh/nvm/releases/latest --jq '.tag_name'
+# renovate: datasource=node-version depName=node
 NODE_VERSION := 24          # derive: node --version (major only, Active LTS)
+# derive: gh api repos/hadolint/hadolint/releases/latest --jq '.tag_name'
+# renovate: datasource=github-releases depName=hadolint/hadolint extractVersion=^v(?<version>.*)$
+HADOLINT_VERSION := 2.14.0
 CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
 DOCKER_IMAGE      := $(APP_NAME)
@@ -22,7 +29,7 @@ OPEN_CMD := $(if $(filter Darwin,$(shell uname -s)),open,xdg-open)
 #help: @ List available tasks
 help:
 	@echo -e "Usage: make COMMAND\n\nCommands :\n"
-	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-18s\033[0m - %s\n", $$1, $$2}'
+	@grep -E '[a-zA-Z\.\-]+:.*?@ .*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ":.*?@ "}; {printf "\033[32m%-20s\033[0m - %s\n", $$1, $$2}'
 
 #deps: @ Verify required build dependencies are available
 deps:
@@ -56,9 +63,10 @@ clean:
 build: deps
 	@$(GRADLE) build -x test
 
-#lint: @ Run Java code style checks (Checkstyle)
-lint: deps
+#lint: @ Run Java code style checks (Checkstyle) and Dockerfile lint
+lint: deps deps-hadolint
 	@$(GRADLE) checkstyleMain checkstyleTest
+	@hadolint Dockerfile
 
 #test: @ Run FIPS validator tests (FIPSValidatorTest only)
 test: deps
@@ -93,6 +101,14 @@ coverage-check: coverage-generate
 #coverage-open: @ Open code coverage report in browser
 coverage-open:
 	@$(OPEN_CMD) ./app/build/reports/jacoco/test/html/index.html
+
+#deps-hadolint: @ Install hadolint for Dockerfile linting
+deps-hadolint:
+	@command -v hadolint >/dev/null 2>&1 || { echo "Installing hadolint $(HADOLINT_VERSION)..."; \
+		curl -sSfL -o /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-Linux-x86_64 && \
+		install -m 755 /tmp/hadolint /usr/local/bin/hadolint && \
+		rm -f /tmp/hadolint; \
+	}
 
 #deps-docker: @ Ensure Docker is installed
 deps-docker:
@@ -166,13 +182,12 @@ deps-act: deps
 	}
 
 #ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
-ci: deps
-	@echo "=== CI Step 1/5: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest
-	@echo "=== CI Step 2/5: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
+ci: deps deps-hadolint
+	@echo "=== CI Step 1/4: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest && hadolint Dockerfile
+	@echo "=== CI Step 2/4: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
-	@echo "=== CI Step 3/5: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
-	@echo "=== CI Step 4/5: Build ===" && $(GRADLE) clean build -x test
-	@echo "=== CI Step 5/5: Run ===" && $(GRADLE) :app:run $(NO_CACHE) --warning-mode all
+	@echo "=== CI Step 3/4: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
+	@echo "=== CI Step 4/4: Build ===" && $(GRADLE) clean build -x test
 	@echo "=== CI Complete ==="
 
 #ci-run: @ Run GitHub Actions workflow locally using act
@@ -206,6 +221,6 @@ tmux-session:
 .PHONY: help deps deps-check clean build lint test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
-	deps-docker image-build image-run image-stop image-build-run image-push \
+	deps-hadolint deps-docker image-build image-run image-stop image-build-run image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
 	deps-prune deps-prune-check deps-act ci ci-run ci-docker release tmux-session

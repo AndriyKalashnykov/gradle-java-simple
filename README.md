@@ -10,11 +10,11 @@ A Gradle-based Java 21 project that validates [FIPS 140-3](https://csrc.nist.gov
 ## Quick Start
 
 ```bash
-make deps-check  # install Java 21 and Gradle via SDKMAN (first time only)
 make deps        # verify required build dependencies are available
 make build       # build the project
 make test        # run tests
 make run         # run the application
+# First time? Run: make deps-check (installs Java 21 + Gradle via SDKMAN)
 ```
 
 ## Prerequisites
@@ -23,9 +23,12 @@ make run         # run the application
 |------|---------|---------|
 | [GNU Make](https://www.gnu.org/software/make/) | 3.81+ | Build orchestration |
 | [Git](https://git-scm.com/) | latest | Version control |
+| [Java (IBM Semeru)](https://developer.ibm.com/languages/java/semeru-runtimes/) | 21.0.10.1-sem | JDK runtime and compiler |
+| [Gradle](https://gradle.org/) | 9.4.1 | Build automation (via wrapper) |
+| [SDKMAN](https://sdkman.io/) | latest | Java/Gradle version management (optional) |
 | [Docker](https://docs.docker.com/get-docker/) | latest | Required only for `image-*` and `ci-docker` targets (optional) |
 
-Install Java 21 and Gradle (auto-installs [SDKMAN](https://sdkman.io/) if needed):
+Install Java and Gradle via SDKMAN (first time only):
 
 ```bash
 make deps-check
@@ -49,7 +52,7 @@ make deps-check
 
 | Target | Description |
 |--------|-------------|
-| `make lint` | Run Java code style checks (Checkstyle) |
+| `make lint` | Run Java code style checks (Checkstyle) and Dockerfile lint |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
@@ -63,6 +66,7 @@ Builds a multi-stage image: Gradle builder + IBM Semeru 21 FIPS runtime (UBI9).
 
 | Target | Description |
 |--------|-------------|
+| `make deps-hadolint` | Install hadolint for Dockerfile linting |
 | `make deps-docker` | Ensure Docker is installed |
 | `make image-build` | Build Docker image |
 | `make image-run` | Run Docker image |

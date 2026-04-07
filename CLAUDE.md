@@ -19,13 +19,14 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
 | `make run` | Run the app |
 | `make clean` | Clean build artifacts |
-| `make lint` | Run Java code style checks (Checkstyle) |
+| `make lint` | Run Java code style checks (Checkstyle) and Dockerfile lint |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
 | `make cve-check` | OWASP dependency vulnerability scan (needs `NVD_API_KEY` env var) |
 | `make cve-db-update` | Update vulnerability database manually |
 | `make cve-db-purge` | Purge local database (forces fresh download) |
+| `make deps-hadolint` | Install hadolint for Dockerfile linting |
 | `make image-build` | Build Docker image |
 | `make image-run` | Run Docker image |
 | `make image-stop` | Stop running Docker container |
@@ -76,6 +77,7 @@ Single-module Gradle project (`app/`) with standard Java layout:
 - **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%
 - **Checkstyle** with custom rules at `config/checkstyle/checkstyle.xml` (120 char line limit, 50 line method limit, 800 line file limit)
+- **hadolint** for Dockerfile linting (auto-installed via `deps-hadolint`; ignores configured in `.hadolint.yaml`)
 - **OWASP Dependency-Check** fails build on CVSS >= 7.0; suppressions in `dependency-check-suppressions.xml`
 
 ## Docker
@@ -108,7 +110,7 @@ Cleanup workflow (`.github/workflows/cleanup-runs.yml`): weekly cron that delete
 
 **Note:** `actions/upload-artifact` is at v7 (hash `bbbca2dd`). Artifact uploads fail locally in act (protocol mismatch with act's artifact server), but `continue-on-error: true` ensures jobs still pass. Artifacts upload correctly on real GitHub Actions.
 
-Run CI locally before pushing: `make ci` (mirrors the static-check → build → test pipeline)
+Run CI locally before pushing: `make ci` (mirrors the static-check → test → coverage → build pipeline)
 Run CI with Docker: `make ci-docker`
 Run GitHub Actions locally: `make ci-run` (uses [act](https://github.com/nektos/act))
 
