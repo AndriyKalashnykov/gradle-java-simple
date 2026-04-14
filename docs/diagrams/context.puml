@@ -1,0 +1,17 @@
+@startuml context
+' renovate: datasource=github-tags depName=plantuml-stdlib/C4-PlantUML
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.11.0/C4_Context.puml
+
+title Gradle Java FIPS Validation — System Context
+
+Person(dev, "Developer", "Builds and runs FIPS validator")
+System(app, "FIPS Validator", "Java 21 app that probes JDK for FIPS mode")
+System_Ext(semeru, "IBM Semeru JDK", "Provides OpenJCEPlusFIPS provider + FIPS profile")
+System_Ext(docker, "Docker / UBI9", "Multi-stage image runtime")
+
+Rel(dev, app, "make build / test / run")
+Rel(app, semeru, "inspects system properties, JCE policy, providers")
+Rel(app, docker, "packaged and run as ENTRYPOINT")
+
+SHOW_LEGEND()
+@enduml

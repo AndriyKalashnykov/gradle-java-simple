@@ -14,6 +14,8 @@ NO_CACHE    := --no-configuration-cache
 GJF_VERSION := 1.28.0
 # renovate: datasource=docker depName=minlag/mermaid-cli
 MERMAID_CLI_VERSION := 11.12.0
+# renovate: datasource=docker depName=plantuml/plantuml
+PLANTUML_VERSION := 1.2025.10
 
 CURRENTTAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
@@ -112,6 +114,20 @@ deps-trivy:
 trivy-fs: deps-trivy
 	@trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH --exit-code 1 .
 
+#diagrams-check: @ Syntax-check PlantUML diagrams under docs/diagrams/
+diagrams-check:
+	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for diagrams-check"; exit 1; }
+	@set -euo pipefail; \
+	PUML_FILES=$$(find docs/diagrams -maxdepth 2 -name '*.puml' 2>/dev/null || true); \
+	if [ -z "$$PUML_FILES" ]; then \
+		echo "No .puml files found — skipping."; \
+		exit 0; \
+	fi; \
+	echo "Syntax-checking $$(echo $$PUML_FILES | wc -w) PlantUML file(s)..."; \
+	docker run --rm -v "$$PWD:/work" -w /work \
+		plantuml/plantuml:$(PLANTUML_VERSION) -checkonly $$PUML_FILES
+	@echo "  ✓ All PlantUML diagrams parse cleanly."
+
 #mermaid-lint: @ Validate Mermaid diagrams in markdown files
 mermaid-lint:
 	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for mermaid-lint"; exit 1; }
@@ -137,8 +153,8 @@ mermaid-lint:
 	done; \
 	if [ "$$FAILED" -gt 0 ]; then echo "Mermaid lint: $$FAILED file(s) had parse errors."; exit 1; fi
 
-#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint)
-static-check: format-check lint secrets trivy-fs mermaid-lint
+#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check)
+static-check: format-check lint secrets trivy-fs mermaid-lint diagrams-check
 	@echo "Static check passed."
 
 #test: @ Run FIPS validator tests (FIPSValidatorTest only)
@@ -292,7 +308,7 @@ tmux-session:
 	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
 
 .PHONY: help deps deps-install deps-check clean build format format-check lint \
-	secrets trivy-fs mermaid-lint static-check test integration-test run \
+	secrets trivy-fs mermaid-lint diagrams-check static-check test integration-test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
 	deps-hadolint deps-gitleaks deps-trivy deps-docker \

@@ -9,17 +9,11 @@ A Gradle-based Java 21 project that validates [FIPS 140-3](https://csrc.nist.gov
 
 ## Architecture
 
-```mermaid
-C4Context
-    title Gradle Java FIPS Validation — System Context
-    Person(dev, "Developer", "Builds and runs FIPS validator")
-    System(app, "FIPS Validator", "Java 21 app that probes JDK for FIPS mode")
-    System_Ext(semeru, "IBM Semeru JDK", "Provides OpenJCEPlusFIPS provider + FIPS profile")
-    System_Ext(docker, "Docker / UBI9", "Multi-stage image runtime")
-    Rel(dev, app, "make build / test / run")
-    Rel(app, semeru, "inspects system properties, JCE policy, providers")
-    Rel(app, docker, "packaged and run as ENTRYPOINT")
-```
+<p align="center">
+  <img src="docs/diagrams/out/context.png" alt="Gradle Java FIPS Validation — System Context (C4)" width="520">
+</p>
+
+Source: [`docs/diagrams/context.puml`](docs/diagrams/context.puml) — C4-PlantUML. `make static-check` runs `diagrams-check` (PlantUML syntax) and `mermaid-lint` (inline Mermaid blocks in any `.md`); re-render the PNG via `docker run --rm -v $PWD:/work -w /work plantuml/plantuml -tpng docs/diagrams/context.puml -o out`.
 
 ## Tech Stack
 
@@ -36,7 +30,7 @@ C4Context
 | CVE Scan | OWASP Dependency-Check |
 | Filesystem Scan | Trivy |
 | Secret Scan | gitleaks |
-| Diagram Lint | mermaid-cli |
+| Diagram Lint | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (inline Mermaid blocks) + [PlantUML](https://plantuml.com/) (`docs/diagrams/*.puml`) |
 | Runtime | IBM Semeru 21 FIPS (UBI9) |
 
 ## Quick Start

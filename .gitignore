@@ -13,6 +13,7 @@ app/build
 *.ipr
 out/
 scripts/out/
+!docs/diagrams/out/
 **/secrets/
 
 ### VS Code ###

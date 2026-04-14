@@ -16,9 +16,10 @@ COPY app app
 RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 
 # Runtime stage - use FIPS-enabled Semeru runtime (IBM public registry).
-# $TARGETPLATFORM is controlled by buildx `platforms:` input — pinned to
-# linux/amd64 in CI (Semeru FIPS profile has no certified arm64 variant).
-FROM --platform=$TARGETPLATFORM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:e8f19758efe9f556c3cf7a658fd5e551f5def2862a9f1b96344625e188f9ed3f
+# The runtime FROM defaults to $TARGETPLATFORM automatically — buildx's
+# `platforms: linux/amd64` in the docker job controls single-arch amd64
+# (Semeru FIPS profile has no certified arm64 variant as of 2026-04-14).
+FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:e8f19758efe9f556c3cf7a658fd5e551f5def2862a9f1b96344625e188f9ed3f
 
 WORKDIR /app
 

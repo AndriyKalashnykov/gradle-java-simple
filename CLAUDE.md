@@ -83,13 +83,15 @@ Single-module Gradle project (`app/`) with standard Java layout:
 
 ## Key Configuration
 
-- **Java 21** (IBM Semeru OpenJ9 `semeru-openj9-21.0.10+7` via mise / `.mise.toml`, with toolchain auto-download via foojay-resolver). All binary tools (Java, Node, hadolint, act, gitleaks, trivy) are pinned in `.mise.toml` and installed via a single `mise install` — the only version constants left in the Makefile are `GJF_VERSION` (JAR) and `MERMAID_CLI_VERSION` (Docker image), since mise does not manage those asset classes
+- **Java 21** (IBM Semeru OpenJ9 `semeru-openj9-21.0.10+7` via mise / `.mise.toml`, with toolchain auto-download via foojay-resolver). All binary tools (Java, Node, hadolint, act, gitleaks, trivy) are pinned in `.mise.toml` and installed via a single `mise install` — the only version constants left in the Makefile are `GJF_VERSION` (JAR), `MERMAID_CLI_VERSION` and `PLANTUML_VERSION` (Docker images), since mise does not manage those asset classes
 - **JVM args for FIPS**: `-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3` (configured in `application` block; tests run with `-Dsemeru.fips=false`)
 - **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%
 - **Checkstyle** with custom rules at `config/checkstyle/checkstyle.xml` (120 char line limit, 50 line method limit, 800 line file limit)
 - **hadolint** for Dockerfile linting (auto-installed via `deps-hadolint`; ignores configured in `.hadolint.yaml`)
 - **OWASP Dependency-Check** fails build on CVSS >= 7.0; suppressions in `dependency-check-suppressions.xml`
+- **Diagram lint** — `make mermaid-lint` uses [`minlag/mermaid-cli`](https://github.com/mermaid-js/mermaid-cli) to parse any inline Mermaid fenced blocks in markdown (short-circuits when none present); `make diagrams-check` uses [`plantuml/plantuml`](https://plantuml.com/) `-checkonly` to syntax-check `docs/diagrams/*.puml`. Both are prerequisites of `make static-check`.
+- **Test pyramid** — this is a CLI tool, no HTTP/cluster surface, so e2e is the CI docker-job smoke test (runs the real image + greps stdout for FIPS status + OpenJCEPlusFIPS provider). Unit tests: `make test` (`FIPSValidatorTest`, sub-second, JVM-in-process). Integration: `make integration-test` (`FIPSValidatorRunnerIT`, spawn-JVM subprocess under real `-Dsemeru.fips` flags, ~5 s).
 
 ## Docker
 
@@ -110,20 +112,21 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint) — runs first (cheapest, fail-fast)
+- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) — runs first (cheapest, fail-fast)
 - **build** job: `make build`, `make run` — runs after static-check passes (`needs: [static-check]`)
 - **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check (`needs: [static-check]`)
-- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test, canonical two-build pattern with GHA cache). `push` and `cosign sign` steps are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Requires `id-token: write` for cosign keyless OIDC. `needs: [build, test]`
+- **integration-test** job: `make integration-test` (`FIPSValidatorRunnerIT` subprocess suite) — runs in parallel with build/test after static-check (`needs: [static-check]`)
+- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test, canonical two-build pattern with GHA cache). `push` and `cosign sign` steps are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Requires `id-token: write` for cosign keyless OIDC. `needs: [build, test, integration-test]`
 - **ci-pass** job: aggregate status gate (`if: always()`, `needs` all above) — use this as the branch-protection required check
 - **concurrency**: superseded runs on the same branch are automatically cancelled
-- Hybrid toolchain install in CI: `jdx/mise-action@v2` in `static-check` (needs hadolint + gitleaks + trivy from `.mise.toml`); `actions/setup-java@v5 distribution: semeru` in `build` / `test` / `integration-test` (Java-only, faster cold cache). `gradle/actions/setup-gradle@v6` handles Gradle caching. Local dev is 100% mise; the Makefile targets are agnostic to how binaries got on PATH.
+- Hybrid toolchain install in CI: `jdx/mise-action@v4` in `static-check` (needs hadolint + gitleaks + trivy from `.mise.toml`); `actions/setup-java@v5 distribution: semeru` in `build` / `test` / `integration-test` (Java-only, faster cold cache). `gradle/actions/setup-gradle@v6` handles Gradle caching. Local dev is 100% mise; the Makefile targets are agnostic to how binaries got on PATH.
 - `workflow_call` trigger supports reuse from other workflows
 
 Cleanup workflow (`.github/workflows/cleanup-runs.yml`): weekly cron that deletes old workflow runs (retains 7 days, minimum 5 runs).
 
 **Note:** `actions/upload-artifact` is at v7 (hash `bbbca2dd`). Artifact uploads fail locally in act (protocol mismatch with act's artifact server), but `continue-on-error: true` ensures jobs still pass. Artifacts upload correctly on real GitHub Actions.
 
-Run CI locally before pushing: `make ci` (mirrors the static-check → test → coverage → build pipeline)
+Run CI locally before pushing: `make ci` (mirrors the static-check → test → integration-test → coverage → build pipeline)
 Run CI with Docker: `make ci-docker`
 Run GitHub Actions locally: `make ci-run` (uses [act](https://github.com/nektos/act))
 
