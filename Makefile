@@ -1,22 +1,24 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
+export PATH := $(HOME)/.local/bin:$(PATH)
 
 APP_NAME    := gradle-java-fips-test
 GRADLE      := ./gradlew
 NO_CACHE    := --no-configuration-cache
-JAVA_VER    := 21.0.10.1-sem  # derive: sdk list java | grep sem (no Renovate datasource for SDKMAN format)
-# renovate: datasource=gradle-version depName=gradle
-GRADLE_VER  := 9.4.1       # derive: sdk list gradle
-# renovate: datasource=github-releases depName=nektos/act extractVersion=^v(?<version>.*)$
-ACT_VERSION := 0.2.87      # derive: gh api repos/nektos/act/releases/latest --jq '.tag_name'
-# renovate: datasource=github-releases depName=nvm-sh/nvm extractVersion=^v(?<version>.*)$
-NVM_VERSION := 0.40.4      # derive: gh api repos/nvm-sh/nvm/releases/latest --jq '.tag_name'
-# renovate: datasource=node-version depName=node
-NODE_VERSION := 24          # derive: node --version (major only, Active LTS)
-# derive: gh api repos/hadolint/hadolint/releases/latest --jq '.tag_name'
-# renovate: datasource=github-releases depName=hadolint/hadolint extractVersion=^v(?<version>.*)$
-HADOLINT_VERSION := 2.14.0
-CURRENTTAG  := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+
+# All binary tools (java, node, hadolint, act, gitleaks, trivy) are pinned in
+# .mise.toml and installed via `mise install` (see deps-install). Gradle comes
+# from the wrapper. Only JAR and Docker-image versions live here.
+
+# renovate: datasource=github-releases depName=google/google-java-format extractVersion=^v(?<version>.*)$
+GJF_VERSION := 1.28.0
+# renovate: datasource=docker depName=minlag/mermaid-cli
+MERMAID_CLI_VERSION := 11.12.0
+
+CURRENTTAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+
+GJF_JAR := $(HOME)/.cache/google-java-format/google-java-format-$(GJF_VERSION)-all-deps.jar
+GJF_URL := https://github.com/google/google-java-format/releases/download/v$(GJF_VERSION)/google-java-format-$(GJF_VERSION)-all-deps.jar
 
 DOCKER_IMAGE      := $(APP_NAME)
 DOCKER_REGISTRY   ?= docker.io
@@ -34,26 +36,22 @@ help:
 #deps: @ Verify required build dependencies are available
 deps:
 	@command -v curl >/dev/null 2>&1 || { echo "Error: curl required."; exit 1; }
-	@java -version 2>&1 | grep -q "\"21\." || { echo "Error: Java 21 required. Run: make deps-check"; exit 1; }
-	@[ -x "$(GRADLE)" ] || { echo "Error: Gradle wrapper (gradlew) not found. Run: make deps-check"; exit 1; }
+	@java -version 2>&1 | grep -q "\"21\." || { echo "Error: Java 21 required. Run: make deps-install"; exit 1; }
+	@[ -x "$(GRADLE)" ] || { echo "Error: Gradle wrapper (gradlew) not found. Run: make deps-install"; exit 1; }
 
-#deps-check: @ Install Java and Gradle via SDKMAN
+#deps-install: @ Install all toolchain dependencies via mise (reads .mise.toml)
+deps-install:
+	@command -v mise >/dev/null 2>&1 || { echo "Installing mise..."; curl -fsSL https://mise.run | sh; }
+	@mise install
+	@echo "Done. Ensure 'mise activate' is in your shell rc, or run: eval \"\$$(mise activate bash)\""
+
+#deps-check: @ Show required tools and installation status
 deps-check:
-	@bash -c '\
-	  set -eo pipefail; \
-	  export SDKMAN_DIR="$${SDKMAN_DIR:-$$HOME/.sdkman}"; \
-	  if [[ -s "$$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then \
-	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; \
-	  else \
-	    echo "Installing SDKMAN..."; \
-	    curl -s "https://get.sdkman.io?rcupdate=false" | bash; \
-	    source "$$SDKMAN_DIR/bin/sdkman-init.sh"; \
-	  fi; \
-	  export SDKMAN_AUTO_ANSWER=true; \
-	  sdk install java "$(JAVA_VER)" 2>/dev/null || true; sdk use java "$(JAVA_VER)"; \
-	  sdk install gradle "$(GRADLE_VER)" 2>/dev/null || true; sdk use gradle "$(GRADLE_VER)"; \
-	  echo "Done. Open a new terminal or run: source $$SDKMAN_DIR/bin/sdkman-init.sh"; \
-	'
+	@echo "--- Tool status ---"
+	@for tool in java mise docker hadolint gitleaks trivy act node; do \
+		printf "  %-16s " "$$tool:"; \
+		command -v $$tool >/dev/null 2>&1 && echo "installed" || echo "NOT installed"; \
+	done
 
 #clean: @ Clean build artifacts
 clean:
@@ -63,15 +61,94 @@ clean:
 build: deps
 	@$(GRADLE) build -x test
 
+$(GJF_JAR):
+	@mkdir -p $(dir $(GJF_JAR))
+	@curl -sSfL -o $(GJF_JAR) $(GJF_URL)
+
+#format: @ Auto-format Java source code (google-java-format)
+format: $(GJF_JAR)
+	@find app/src -name '*.java' -type f | \
+		xargs java --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+			-jar $(GJF_JAR) --replace
+
+#format-check: @ Verify code formatting (CI gate)
+format-check: $(GJF_JAR)
+	@find app/src -name '*.java' -type f | \
+		xargs java --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+			--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+			-jar $(GJF_JAR) --set-exit-if-changed --dry-run > /dev/null
+
 #lint: @ Run Java code style checks (Checkstyle) and Dockerfile lint
 lint: deps deps-hadolint
 	@$(GRADLE) checkstyleMain checkstyleTest
 	@hadolint Dockerfile
 
+#deps-gitleaks: @ Ensure gitleaks is installed (via mise)
+deps-gitleaks:
+	@command -v gitleaks >/dev/null 2>&1 || { \
+		command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }; \
+		mise install gitleaks; \
+	}
+
+#secrets: @ Scan for hardcoded secrets with gitleaks
+secrets: deps-gitleaks
+	@gitleaks detect --source . --verbose --redact --no-banner
+
+#deps-trivy: @ Ensure Trivy is installed (via mise)
+deps-trivy:
+	@command -v trivy >/dev/null 2>&1 || { \
+		command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }; \
+		mise install trivy; \
+	}
+
+#trivy-fs: @ Scan filesystem for vulnerabilities, secrets, and misconfigurations
+trivy-fs: deps-trivy
+	@trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH --exit-code 1 .
+
+#mermaid-lint: @ Validate Mermaid diagrams in markdown files
+mermaid-lint:
+	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for mermaid-lint"; exit 1; }
+	@set -euo pipefail; \
+	MD_FILES=$$(grep -lF '```mermaid' README.md CLAUDE.md 2>/dev/null || true); \
+	if [ -z "$$MD_FILES" ]; then \
+		echo "No Mermaid blocks found — skipping."; \
+		exit 0; \
+	fi; \
+	FAILED=0; \
+	for md in $$MD_FILES; do \
+		echo "Validating Mermaid blocks in $$md..."; \
+		LOG=$$(mktemp); \
+		if docker run --rm -v "$$PWD:/data" \
+			minlag/mermaid-cli:$(MERMAID_CLI_VERSION) \
+			-i "/data/$$md" -o "/tmp/$$(basename $$md .md).svg" >"$$LOG" 2>&1; then \
+			echo "  ✓ All blocks rendered cleanly."; \
+		else \
+			echo "  ✗ Parse error in $$md:"; sed 's/^/    /' "$$LOG"; \
+			FAILED=$$((FAILED + 1)); \
+		fi; \
+		rm -f "$$LOG"; \
+	done; \
+	if [ "$$FAILED" -gt 0 ]; then echo "Mermaid lint: $$FAILED file(s) had parse errors."; exit 1; fi
+
+#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint)
+static-check: format-check lint secrets trivy-fs mermaid-lint
+	@echo "Static check passed."
+
 #test: @ Run FIPS validator tests (FIPSValidatorTest only)
 test: deps
 	@$(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
 	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
+
+#integration-test: @ Run integration tests (spawn-JVM subprocess IT suite)
+integration-test: deps
+	@$(GRADLE) :app:integrationTest
 
 #run: @ Run project
 run: deps
@@ -80,7 +157,10 @@ run: deps
 #cve-check: @ Run OWASP dependency vulnerability scan (needs NVD_API_KEY)
 cve-check: deps
 	@[ -n "$${NVD_API_KEY:-}" ] || echo "Warning: NVD_API_KEY not set"
-	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all
+	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all \
+		$$([ -n "$${NVD_API_KEY:-}" ] && echo "-PnvdApiKey=$$NVD_API_KEY") \
+		$$([ -n "$${OSS_INDEX_USER:-}" ] && echo "-PossIndexUser=$$OSS_INDEX_USER") \
+		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "-PossIndexToken=$$OSS_INDEX_TOKEN")
 
 #cve-db-update: @ Update vulnerability database manually
 cve-db-update: deps
@@ -102,12 +182,11 @@ coverage-check: coverage-generate
 coverage-open:
 	@$(OPEN_CMD) ./app/build/reports/jacoco/test/html/index.html
 
-#deps-hadolint: @ Install hadolint for Dockerfile linting
+#deps-hadolint: @ Ensure hadolint is installed (via mise)
 deps-hadolint:
-	@command -v hadolint >/dev/null 2>&1 || { echo "Installing hadolint $(HADOLINT_VERSION)..."; \
-		curl -sSfL -o /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/hadolint-Linux-x86_64 && \
-		install -m 755 /tmp/hadolint /usr/local/bin/hadolint && \
-		rm -f /tmp/hadolint; \
+	@command -v hadolint >/dev/null 2>&1 || { \
+		command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }; \
+		mise install hadolint; \
 	}
 
 #deps-docker: @ Ensure Docker is installed
@@ -142,25 +221,15 @@ gradle-stop:
 upgrade: deps
 	@$(GRADLE) :app:dependencyUpdates $(NO_CACHE)
 
-#renovate-bootstrap: @ Install nvm and npm for renovate
+#renovate-bootstrap: @ Ensure Node is installed (via mise)
 renovate-bootstrap:
-	@bash -c '\
-	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
-	  if [ ! -d "$$NVM_DIR" ]; then \
-	    echo "Installing nvm $(NVM_VERSION)..."; \
-	    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v$(NVM_VERSION)/install.sh | bash; \
-	  else echo "nvm already installed"; fi; \
-	  [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh"; \
-	  nvm install $(NODE_VERSION); nvm use $(NODE_VERSION); \
-	'
+	@command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }
+	@mise install node
 
 #renovate-validate: @ Validate Renovate configuration
 renovate-validate: renovate-bootstrap
-	@bash -c '\
-	  export NVM_DIR="$${NVM_DIR:-$$HOME/.nvm}"; \
-	  [ -s "$$NVM_DIR/nvm.sh" ] || { echo "Error: nvm not found. Run: make renovate-bootstrap"; exit 1; }; \
-	  . "$$NVM_DIR/nvm.sh"; npx -p renovate -c "renovate-config-validator"; \
-	'
+	@command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }
+	@mise exec node -- npx -p renovate -c "renovate-config-validator"
 
 #deps-prune: @ Show dependency tree for manual pruning review
 deps-prune: deps
@@ -171,36 +240,40 @@ deps-prune: deps
 #deps-prune-check: @ Verify no prunable dependencies (CI gate)
 deps-prune-check: deps
 	@echo "=== Dependency Prune Check (Gradle) ==="
-	@$(GRADLE) :app:dependencies --configuration runtimeClasspath 2>&1 | \
-		grep -iE '(FAILED|could not resolve)' && { echo "ERROR: Unresolvable dependencies found. Run 'make deps-prune' to review."; exit 1; } || true
+	@if $(GRADLE) :app:dependencies --configuration runtimeClasspath 2>&1 | grep -iE '(FAILED|could not resolve)'; then \
+		echo "ERROR: Unresolvable dependencies found. Run 'make deps-prune' to review."; exit 1; \
+	fi
 	@echo "No prunable dependency issues detected."
 
-#deps-act: @ Install act for local GitHub Actions testing
+#deps-act: @ Ensure act is installed (via mise)
 deps-act: deps
-	@command -v act >/dev/null 2>&1 || { echo "Installing act $(ACT_VERSION)..."; \
-		curl -sSfL https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash -s -- -b /usr/local/bin v$(ACT_VERSION); \
+	@command -v act >/dev/null 2>&1 || { \
+		command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }; \
+		mise install act; \
 	}
 
 #ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
-ci: deps deps-hadolint
-	@echo "=== CI Step 1/4: Lint ===" && $(GRADLE) checkstyleMain checkstyleTest && hadolint Dockerfile
-	@echo "=== CI Step 2/4: Test ===" && $(GRADLE) :app:test --tests "org.example.FIPSValidatorTest" --info \
-	  -Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3
-	@echo "=== CI Step 3/4: Coverage ===" && $(GRADLE) jacocoTestReport jacocoTestCoverageVerification
-	@echo "=== CI Step 4/4: Build ===" && $(GRADLE) clean build -x test
+ci: deps static-check test integration-test coverage-check build
 	@echo "=== CI Complete ==="
 
 #ci-run: @ Run GitHub Actions workflow locally using act
 ci-run: deps-act
+	@docker container prune -f 2>/dev/null || true
+	@# Pass secret NAMES only (no =VALUE) so act reads values from env —
+	@# avoids leaking credentials in `ps aux` output.
 	@act push --container-architecture linux/amd64 \
-		--artifact-server-path /tmp/act-artifacts
+		--artifact-server-path /tmp/act-artifacts \
+		--var ACT=true \
+		$$([ -n "$${NVD_API_KEY:-}" ] && echo "--secret NVD_API_KEY") \
+		$$([ -n "$${OSS_INDEX_USER:-}" ] && echo "--secret OSS_INDEX_USER") \
+		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "--secret OSS_INDEX_TOKEN")
 
 #ci-docker: @ Run full CI pipeline including Docker build
 ci-docker: ci image-build
 	@echo "=== CI Docker Complete ==="
 
 #release: @ Create and push a new tag
-release:
+release: deps
 	@bash -c 'read -p "New tag (current: $(CURRENTTAG)): " newtag && \
 		echo "$$newtag" | grep -qE "^v[0-9]+\.[0-9]+\.[0-9]+$$" || { echo "Error: Tag must match vN.N.N"; exit 1; } && \
 		echo -n "Create and push $$newtag? [y/N] " && read ans && [ "$${ans:-N}" = y ] && \
@@ -218,9 +291,11 @@ tmux-session:
 	@tmux send-keys -t gradle-fips-test "claude" C-m
 	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
 
-.PHONY: help deps deps-check clean build lint test run \
+.PHONY: help deps deps-install deps-check clean build format format-check lint \
+	secrets trivy-fs mermaid-lint static-check test integration-test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
-	deps-hadolint deps-docker image-build image-run image-stop image-build-run image-push \
+	deps-hadolint deps-gitleaks deps-trivy deps-docker \
+	image-build image-run image-stop image-build-run image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
 	deps-prune deps-prune-check deps-act ci ci-run ci-docker release tmux-session

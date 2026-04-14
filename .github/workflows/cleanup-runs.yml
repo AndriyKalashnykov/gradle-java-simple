@@ -2,14 +2,19 @@ name: Cleanup old workflow runs
 
 on:
   schedule:
-    - cron: '7 0 * * 0'
+    - cron: '0 0 * * 0'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   actions: write
 
+concurrency:
+  group: cleanup-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
-  cleanup:
+  cleanup-runs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -19,8 +24,24 @@ jobs:
     steps:
       - name: Delete old workflow runs
         run: |
-          CUTOFF=$(date -u -d "$RETAIN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+          CUTOFF=$(date -u -d "${RETAIN_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)
           gh run list --repo "${{ github.repository }}" \
             --json databaseId,createdAt --limit 200 \
-            --jq "sort_by(.createdAt) | reverse | .[$KEEP_MINIMUM:] | .[] | select(.createdAt < \\"$CUTOFF\\") | .databaseId" \
+          | jq -r \
+              --arg cutoff "$CUTOFF" \
+              --argjson keep "$KEEP_MINIMUM" \
+              'sort_by(.createdAt) | reverse | .[$keep:] | .[] | select(.createdAt < $cutoff) | .databaseId' \
           | xargs -r -I{} gh run delete {} --repo "${{ github.repository }}"
+
+  cleanup-caches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Delete caches from deleted branches
+        run: |
+          gh cache list --repo "${{ github.repository }}" --limit 100 \
+            --json id,ref \
+          | jq -r '.[] | select(.ref | startswith("refs/pull/") | not) | select(.ref != "refs/heads/main") | .id' \
+          | xargs -r -I{} gh cache delete {} --repo "${{ github.repository }}" || true

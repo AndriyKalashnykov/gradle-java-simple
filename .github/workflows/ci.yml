@@ -1,6 +1,6 @@
 # CI pipeline: lint, test, coverage, build, run, and Docker image build/push
 
-name: ci
+name: CI
 
 on:
   push:
@@ -50,24 +50,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - name: Download repository
+    - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: Set up JDK
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-      with:
-        java-version: 21
-        distribution: 'semeru'
+    - name: Set up mise
+      uses: jdx/mise-action@v2
 
-    - name: Setup Gradle
+    - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
       with:
         cache-read-only: true
         build-scan-terms-of-use-url: 'https://gradle.com/help/legal-terms-of-use'
         build-scan-terms-of-use-agree: 'yes'
 
-    - name: Lint
-      run: make lint
+    - name: Static check
+      run: make static-check
 
   build:
     needs: [static-check]
@@ -75,7 +72,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - name: Download repository
+    - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
     - name: Set up JDK
@@ -84,7 +81,7 @@ jobs:
         java-version: 21
         distribution: 'semeru'
 
-    - name: Setup Gradle
+    - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
       with:
         cache-read-only: true
@@ -97,13 +94,13 @@ jobs:
     - name: Run
       run: make run
 
-  test:
+  integration-test:
     needs: [static-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-    - name: Download repository
+    - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
     - name: Set up JDK
@@ -112,7 +109,32 @@ jobs:
         java-version: 21
         distribution: 'semeru'
 
-    - name: Setup Gradle
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
+      with:
+        cache-read-only: true
+        build-scan-terms-of-use-url: 'https://gradle.com/help/legal-terms-of-use'
+        build-scan-terms-of-use-agree: 'yes'
+
+    - name: Integration test
+      run: make integration-test
+
+  test:
+    needs: [static-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+    - name: Set up JDK
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+      with:
+        java-version: 21
+        distribution: 'semeru'
+
+    - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
       with:
         cache-read-only: true
@@ -147,30 +169,127 @@ jobs:
         retention-days: 14
 
   docker:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, test]
+    needs: [build, test, integration-test]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      SCAN_IMAGE: ${{ vars.DOCKER_REPO || 'local/gradle-java-fips-test' }}:scan
 
     steps:
-    - name: Download repository
+    - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
-    - name: Build Docker image
-      run: make image-build
+    - name: Docker metadata
+      id: meta
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ vars.DOCKER_REGISTRY && format('{0}/{1}', vars.DOCKER_REGISTRY, vars.DOCKER_REPO) || 'local/gradle-java-fips-test' }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=ref,event=branch
+          type=sha,prefix=sha-
+        flavor: |
+          latest=${{ startsWith(github.ref, 'refs/tags/') }}
 
-    - name: Login to Docker Registry
-      if: vars.DOCKER_REGISTRY != ''
+    - name: Build image for scan
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        load: true
+        push: false
+        platforms: linux/amd64
+        tags: ${{ env.SCAN_IMAGE }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
+        sbom: false
+
+    - name: Trivy image scan
+      uses: aquasecurity/trivy-action@0.35.0
+      with:
+        image-ref: ${{ env.SCAN_IMAGE }}
+        severity: CRITICAL,HIGH
+        exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: os,library
+
+    - name: Smoke test
+      run: |
+        set -euo pipefail
+        echo "=== Smoke test: default entrypoint (FIPS flags baked in) ==="
+        docker run --rm --name smoke-test ${{ env.SCAN_IMAGE }} | tee smoke.log
+        grep -q '=== FIPS Validator Runner ===' smoke.log \
+          || { echo "Missing header — runner did not start cleanly."; exit 1; }
+        grep -q '=== FIPS Validator Runner Complete ===' smoke.log \
+          || { echo "Missing footer — runner exited early."; exit 1; }
+        grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' smoke.log \
+          || { echo "Missing status line — getFIPSStatus() not reached."; exit 1; }
+        grep -q 'Security Providers:' smoke.log \
+          || { echo "Missing providers section — printFIPSProviders() not reached."; exit 1; }
+        grep -q 'OpenJCEPlusFIPS' smoke.log \
+          || { echo "Missing OpenJCEPlusFIPS provider — Semeru FIPS runtime regression or profile dropped?"; exit 1; }
+
+        echo "=== Smoke test: negative case (no FIPS flags) ==="
+        docker run --rm --name smoke-test-neg \
+          --entrypoint java ${{ env.SCAN_IMAGE }} \
+          -cp '/app/lib/*' org.example.FIPSValidatorRunner | tee smoke-neg.log
+        grep -q 'Status: FIPS mode is DISABLED' smoke-neg.log \
+          || { echo "Negative case: expected DISABLED without -Dsemeru.fips flag, but got something else."; exit 1; }
+        echo "Smoke tests passed."
+
+    - name: Log in to Docker Hub
+      if: startsWith(github.ref, 'refs/tags/') && vars.DOCKER_REGISTRY != ''
       uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
       with:
         registry: ${{ vars.DOCKER_REGISTRY }}
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Push Docker image
-      if: vars.DOCKER_REGISTRY != ''
-      continue-on-error: true
-      run: make image-push DOCKER_REGISTRY=${{ vars.DOCKER_REGISTRY }} DOCKER_REPO=${{ vars.DOCKER_REPO }} DOCKER_TAG=${{ github.ref_name }}
+    - name: Build and push
+      id: push
+      if: startsWith(github.ref, 'refs/tags/') && vars.DOCKER_REGISTRY != ''
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        push: true
+        platforms: linux/amd64
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
+        sbom: false
+
+    - name: Install cosign
+      if: startsWith(github.ref, 'refs/tags/') && vars.DOCKER_REGISTRY != ''
+      uses: sigstore/cosign-installer@v4.1.1
+
+    - name: Sign image with cosign
+      if: startsWith(github.ref, 'refs/tags/') && vars.DOCKER_REGISTRY != ''
+      env:
+        DIGEST: ${{ steps.push.outputs.digest }}
+        IMAGE: ${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_REPO }}
+      run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  ci-pass:
+    if: always()
+    needs: [static-check, build, test, integration-test, docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Verify all required jobs passed
+      run: |
+        if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then
+          echo "One or more required jobs failed or were cancelled."
+          exit 1
+        fi
+        echo "All required jobs passed (or were skipped)."

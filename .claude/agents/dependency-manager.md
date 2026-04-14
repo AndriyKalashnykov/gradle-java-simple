@@ -59,7 +59,7 @@ Before upgrading a dependency:
 
 ## Gradle Wrapper
 
-- Current Gradle version: 9.0.0 (sdkman) / wrapper version in `gradle/wrapper/`
+- Current Gradle version: `gradle/wrapper/gradle-wrapper.properties` is the source of truth (wrapper-driven; no standalone Gradle install).
 - Update wrapper: `./gradlew wrapper --gradle-version=<version>`
 - The `com.github.ben-manes.versions` plugin detects dependency updates
 

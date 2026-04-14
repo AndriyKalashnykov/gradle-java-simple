@@ -14,19 +14,30 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 |---------|-------------|
 | `make help` | List available tasks |
 | `make deps` | Verify required build dependencies are available |
-| `make deps-check` | Install Java and Gradle via SDKMAN |
-| `make build` | Build project, compile only — no tests (runs `deps` first) |
+| `make deps-install` | Install Java via mise (Gradle comes from the wrapper) |
+| `make deps-check` | Show required tools and installation status |
+| `make build` | Build project (compile only, no tests; depends on `deps`) |
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
-| `make run` | Run the app |
+| `make integration-test` | Run integration tests (spawn-JVM subprocess IT suite) |
+| `make run` | Run project |
 | `make clean` | Clean build artifacts |
-| `make lint` | Run Java code style checks (Checkstyle) and Dockerfile lint |
+| `make format` | Auto-format Java source code (google-java-format) |
+| `make format-check` | Verify code formatting (CI gate) |
+| `make lint` | Run Checkstyle and Dockerfile lint |
+| `make secrets` | Scan for hardcoded secrets with gitleaks |
+| `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, misconfigurations |
+| `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
+| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
-| `make cve-check` | OWASP dependency vulnerability scan (needs `NVD_API_KEY` env var) |
+| `make cve-check` | Run OWASP dependency vulnerability scan (needs `NVD_API_KEY`) |
 | `make cve-db-update` | Update vulnerability database manually |
 | `make cve-db-purge` | Purge local database (forces fresh download) |
 | `make deps-hadolint` | Install hadolint for Dockerfile linting |
+| `make deps-gitleaks` | Install gitleaks for secret scanning |
+| `make deps-trivy` | Install Trivy for security scanning |
+| `make deps-docker` | Ensure Docker is installed |
 | `make image-build` | Build Docker image |
 | `make image-run` | Run Docker image |
 | `make image-stop` | Stop running Docker container |
@@ -34,7 +45,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make image-push` | Push Docker image to registry |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make upgrade` | Check for dependency updates |
-| `make renovate-bootstrap` | Install nvm and npm for renovate |
+| `make renovate-bootstrap` | Ensure Node is installed (via mise) |
 | `make renovate-validate` | Validate Renovate configuration |
 | `make deps-prune` | Show dependency tree for manual pruning review |
 | `make deps-prune-check` | Verify no prunable dependencies (CI gate) |
@@ -45,7 +56,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make release` | Create and push a new tag |
 | `make tmux-session` | Launch tmux session with Claude |
 
-**Target design:** `deps` checks that tools are available (fails fast with instructions to run `deps-check` if missing). All targets that invoke Gradle depend on `deps` for reliable error messages on a fresh checkout. The `ci` target orchestrates the full pipeline as a linear sequence. `image-build` depends on both `deps-docker` and `build`. `renovate-validate` depends on `renovate-bootstrap`.
+**Target design:** `deps` checks that tools are available (fails fast with instructions to run `deps-install` if missing). Java is pinned in `.mise.toml`; Gradle comes from `./gradlew`. The `static-check` composite target is the single source of truth for quality gates — CI calls it, `make ci` calls it. All targets that invoke Gradle depend on `deps` for reliable error messages on a fresh checkout. Binary tools (hadolint, gitleaks, trivy, act) install to `$HOME/.local/bin` (no sudo). `image-build` depends on `deps-docker` and `build`. `renovate-validate` depends on `renovate-bootstrap`.
 
 ### Direct Gradle Commands
 
@@ -66,13 +77,13 @@ Note: Gradle configuration cache is enabled by default (`gradle.properties`). So
 
 Single-module Gradle project (`app/`) with standard Java layout:
 
-- **`App`** (`org.example.App`) - Main application class with greeting/message functionality. Entry point.
+- **`App`** (`org.example.App`) - Main application class with greeting/message functionality. `make run` entry point (`application { mainClass }`).
 - **`FIPSValidator`** (`org.example.FIPSValidator`) - Detects FIPS mode by checking Semeru JDK system properties (`semeru.fips`, `semeru.customprofile`), JCE crypto policy, Red Hat FIPS property, and registered security providers.
-- **`FIPSValidatorRunner`** (`org.example.FIPSValidatorRunner`) - Standalone runner for FIPS validation, used as Docker container entry point.
+- **`FIPSValidatorRunner`** (`org.example.FIPSValidatorRunner`) - Standalone runner for FIPS validation; Docker image `ENTRYPOINT`.
 
 ## Key Configuration
 
-- **Java 21** (IBM Semeru via sdkman, with toolchain auto-download via foojay-resolver)
+- **Java 21** (IBM Semeru OpenJ9 `semeru-openj9-21.0.10+7` via mise / `.mise.toml`, with toolchain auto-download via foojay-resolver). All binary tools (Java, Node, hadolint, act, gitleaks, trivy) are pinned in `.mise.toml` and installed via a single `mise install` — the only version constants left in the Makefile are `GJF_VERSION` (JAR) and `MERMAID_CLI_VERSION` (Docker image), since mise does not manage those asset classes
 - **JVM args for FIPS**: `-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3` (configured in `application` block; tests run with `-Dsemeru.fips=false`)
 - **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%
@@ -99,12 +110,14 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **static-check** job: `make lint` — runs first (cheapest, fail-fast)
+- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint) — runs first (cheapest, fail-fast)
 - **build** job: `make build`, `make run` — runs after static-check passes (`needs: [static-check]`)
 - **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check (`needs: [static-check]`)
-- **docker** job: tag-gated (`if: startsWith(github.ref, 'refs/tags/')`), builds and pushes Docker image after build and test pass (`needs: [build, test]`)
+- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test, canonical two-build pattern with GHA cache). `push` and `cosign sign` steps are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Requires `id-token: write` for cosign keyless OIDC. `needs: [build, test]`
+- **ci-pass** job: aggregate status gate (`if: always()`, `needs` all above) — use this as the branch-protection required check
 - **concurrency**: superseded runs on the same branch are automatically cancelled
-- No sdkman in CI — `deps` checks for system Java 21 and `gradle` (both provided by actions). JDK via `actions/setup-java`, Gradle via `gradle/actions/setup-gradle` (includes caching)
+- Hybrid toolchain install in CI: `jdx/mise-action@v2` in `static-check` (needs hadolint + gitleaks + trivy from `.mise.toml`); `actions/setup-java@v5 distribution: semeru` in `build` / `test` / `integration-test` (Java-only, faster cold cache). `gradle/actions/setup-gradle@v6` handles Gradle caching. Local dev is 100% mise; the Makefile targets are agnostic to how binaries got on PATH.
+- `workflow_call` trigger supports reuse from other workflows
 
 Cleanup workflow (`.github/workflows/cleanup-runs.yml`): weekly cron that deletes old workflow runs (retains 7 days, minimum 5 runs).
 
@@ -135,11 +148,26 @@ Teams mode enabled in `.claude/settings.json`. Agents can run in parallel for in
 
 ## Upgrade Backlog
 
-Deferred upgrade items. Last full review: 2026-04-05 (all deps at latest). Review periodically — resolve actionable items, remove stale ones.
+Deferred upgrade items. Last full review: 2026-04-14 (via `/upgrade-analysis`). Review periodically — resolve actionable items, remove stale ones.
 
-- [ ] **FIPS profile hard expiry 2026-09-21** (~168 days) — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Updated to 21.0.10.1-sem but expiry unchanged — need a future Semeru release from IBM. Check: `make run` output for expiry warning. **Monitor monthly.**
-- [ ] **`JAVA_VER` not tracked by Renovate** — SDKMAN version format (`21.0.10.1-sem`) has no Renovate datasource. Must manually check for Semeru JDK updates via `sdk list java | grep sem`.
+### Open
+
+- [ ] **FIPS profile hard expiry 2026-09-21** (~160 days) — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Needs a future Semeru release from IBM. Check: `make run` output for expiry warning. **Monitor monthly.**
 - [ ] **Gradle 10 compatibility** — ben-manes versions plugin triggers deprecation warning. Watch for plugin update. Check: `./gradlew dependencyUpdates --warning-mode all`.
+- [x] ~~**Wave 2 major action bumps**~~ — Applied 2026-04-14. `docker/metadata-action@v6`, `docker/build-push-action@v7`, `sigstore/cosign-installer@v4` (installs Cosign v3) all landed together. `make ci-run` verified clean through the non-tag-gated path; cosign sign itself still needs a real tag push to exercise fully (tracked in next-release checklist).
+- [x] ~~**Remove `"nvm"` from Renovate `enabledManagers`**~~ — Resolved 2026-04-14 via `/renovate`. Also added `.mise.toml` custom manager; dropped native `mise` manager to avoid duplicate-PR risk from datasource mismatch; inline `# renovate:` comments are the single source of truth for `.mise.toml` pins.
+- [ ] **SBOM / provenance opt-in** — docker job currently sets `sbom: false` + `provenance: false` per hardening decision. Revisit if SLSA L2 attestations become a compliance requirement; build-push-action v7 supports `provenance: mode=max`.
+- [ ] **Portfolio version skew audit** — run `/upgrade-analysis portfolio` against `~/projects/` to catch drift in `act`, `hadolint`, `gitleaks`, `trivy`, Java Semeru, Gradle, and GitHub Action SHAs across the 20+ repos.
+- [ ] **Java 25 LTS migration planning** — Java 25 LTS expected Sep 2025. Java 21 LTS supported through ~2031. Plan migration 2027–2028.
+- [ ] **`commons-lang3` decoy dependency** — declared only to give `make cve-check` something to scan (see inline comment in `app/build.gradle`). If real runtime deps are added, remove or move into a dedicated `cveOnly` configuration so it doesn't leak into the shipped classpath.
+- [ ] **Multi-arch Docker image** — amd64-only because IBM Semeru FIPS profile lacks certified arm64 variant as of 2026-04-14. Re-verify quarterly via `docker manifest inspect icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal`.
+
+### Resolved
+
+- [x] ~~**SDKMAN → mise migration**~~ — Completed 2026-04-14. All binary toolchain (Java, Node, hadolint, act, gitleaks, trivy) pinned in `.mise.toml` with Renovate annotations. `.nvmrc` dropped.
+- [x] ~~**`JAVA_VER` not tracked by Renovate**~~ — Resolved 2026-04-14. Migrated from SDKMAN to mise; Java version pinned in `.mise.toml` with `datasource=java-version`.
+- [x] ~~**Integration-test layer**~~ — Added 2026-04-14. `FIPSValidatorRunnerIT` spawns-JVM subprocess with real flags; Gradle `integrationTest` source set + task; CI job + Makefile target.
+- [x] ~~**Docker image hardening**~~ — 2026-04-14. Trivy image scan + smoke test (incl. negative case) + cosign keyless OIDC signing + GHA cache + two-build pattern.
 - [x] ~~**upload-artifact v4 → v7 migration**~~ — Completed 2026-04-03.
 - [x] ~~**commons-math3 stale since 2016**~~ — Resolved 2026-04-03. Removed entirely.
 - [x] ~~**Dockerfile missing syntax directive**~~ — Resolved 2026-04-05. Added `# syntax=docker/dockerfile:1`.
@@ -154,6 +182,6 @@ Use the following skills when working on related files:
 | `Makefile` | `/makefile` |
 | `renovate.json` | `/renovate` |
 | `README.md` | `/readme` |
-| `.github/workflows/*.yml` | `/ci-workflow` |
+| `.github/workflows/*.{yml,yaml}` | `/ci-workflow` |
 
 When spawning subagents, always pass conventions from the respective skill into the agent's prompt.

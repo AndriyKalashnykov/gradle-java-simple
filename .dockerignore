@@ -9,7 +9,6 @@ app/build
 .claude
 .vscode
 docs
-TestRunner.java
 renovate.json
 LICENSE
 version.txt
