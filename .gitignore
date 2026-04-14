@@ -16,5 +16,6 @@ scripts/out/
 **/secrets/
 
 ### VS Code ###
+.vscode/
 .project
 .settings
