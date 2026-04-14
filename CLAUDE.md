@@ -161,6 +161,7 @@ Deferred upgrade items. Last full review: 2026-04-14 (via `/upgrade-analysis`). 
 - [ ] **Java 25 LTS migration planning** — Java 25 LTS expected Sep 2025. Java 21 LTS supported through ~2031. Plan migration 2027–2028.
 - [ ] **`commons-lang3` decoy dependency** — declared only to give `make cve-check` something to scan (see inline comment in `app/build.gradle`). If real runtime deps are added, remove or move into a dedicated `cveOnly` configuration so it doesn't leak into the shipped classpath.
 - [ ] **Multi-arch Docker image** — amd64-only because IBM Semeru FIPS profile lacks certified arm64 variant as of 2026-04-14. Re-verify quarterly via `docker manifest inspect icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal`.
+- [ ] **`actions/cache@v4` deprecation warning (transitive via `aquasecurity/trivy-action`)** — CI emits `Node.js 20 actions are deprecated` annotation on every run. Pin is inside `aquasecurity/trivy-action@0.35.0`, not directly referenceable from our workflow. Real failure deadline: 2026-09-16 (Node 20 removed from runners). Fix depends on upstream `aquasecurity/trivy-action` bumping its internal `actions/cache` pin — monitor their release notes; Renovate will pick up a newer `trivy-action` when one ships.
 
 ### Resolved
 
