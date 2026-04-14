@@ -49,7 +49,7 @@ make run          # run the application
 |------|---------|---------|
 | [GNU Make](https://www.gnu.org/software/make/) | 3.81+ | Build orchestration |
 | [Git](https://git-scm.com/) | latest | Version control |
-| [mise](https://mise.jdx.dev/) | latest | Java/Node version management |
+| [mise](https://mise.jdx.dev/) | latest | Toolchain version management (Java, Node, hadolint, act, gitleaks, trivy) |
 | [Java (IBM Semeru)](https://developer.ibm.com/languages/java/semeru-runtimes/) | 21.0.10+ | JDK runtime and compiler (installed by `make deps-install`) |
 | [Docker](https://docs.docker.com/get-docker/) | latest | Required for `image-*`, `ci-docker`, `trivy-fs`, `mermaid-lint` (optional for core build) |
 
@@ -122,7 +122,8 @@ grep "^security.provider" /opt/java/openjdk/conf/security/java.security
 | `make secrets` | Scan for hardcoded secrets with gitleaks |
 | `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, and misconfigurations |
 | `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
-| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint) |
+| `make diagrams-check` | Syntax-check PlantUML diagrams under `docs/diagrams/` |
+| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
@@ -187,7 +188,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `
 | **docker** | push, PR, tags (push/sign tag-gated) | Build → Trivy scan → smoke test (incl. negative case) → (tag-only) push + cosign sign | `build`, `test`, `integration-test` |
 | **ci-pass** | all | Aggregate status gate | all above |
 
-`build` and `test` run in parallel after `static-check` passes. The `docker` job builds and scans the image on every push; `push` and `cosign sign` only fire on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
+`build`, `test`, and `integration-test` run in parallel after `static-check` passes. The `docker` job builds and scans the image on every push; `push` and `cosign sign` only fire on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs and caches (retains 7 days, minimum 5 runs).
 
@@ -197,13 +198,14 @@ Configure under **Settings → Secrets and variables → Actions**:
 
 | Name | Type | Used by | How to obtain |
 |------|------|---------|---------------|
-| `NVD_API_KEY` | secret | `cve-check` (OWASP Dependency-Check) | Request at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key) |
 | `DOCKER_USERNAME` | secret | `docker` job (push) | Registry account username |
 | `DOCKER_PASSWORD` | secret | `docker` job (push) | Registry password / token |
 | `DOCKER_REGISTRY` | variable | `docker` job | Registry host (e.g. `docker.io`) |
 | `DOCKER_REPO` | variable | `docker` job | Image path (e.g. `myuser/gradle-java-fips-test`) |
 
 Leaving `DOCKER_REGISTRY` unset skips login and push; builds and scans still run for every push and PR.
+
+`NVD_API_KEY` is not required by CI (no job invokes `make cve-check`). It's only needed locally when running `make cve-check` or `make ci-run` — in both cases it's read from the local environment. Request one at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key).
 
 [Renovate](https://docs.renovatebot.com/) keeps dependencies up to date with platform automerge enabled.
 
