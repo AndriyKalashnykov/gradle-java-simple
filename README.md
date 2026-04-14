@@ -194,16 +194,7 @@ A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old work
 
 ### Required Secrets and Variables
 
-Configure under **Settings → Secrets and variables → Actions**:
-
-| Name | Type | Used by | How to obtain |
-|------|------|---------|---------------|
-| `DOCKER_USERNAME` | secret | `docker` job (push) | Registry account username |
-| `DOCKER_PASSWORD` | secret | `docker` job (push) | Registry password / token |
-| `DOCKER_REGISTRY` | variable | `docker` job | Registry host (e.g. `docker.io`) |
-| `DOCKER_REPO` | variable | `docker` job | Image path (e.g. `myuser/gradle-java-fips-test`) |
-
-Leaving `DOCKER_REGISTRY` unset skips login and push; builds and scans still run for every push and PR.
+No user-configured secrets or variables are required. The `docker` job pushes to [GHCR](https://ghcr.io) at `ghcr.io/andriykalashnykov/gradle-java-fips-test` using the auto-provided `GITHUB_TOKEN` (scoped via the job's `packages: write` permission). Cosign keyless signing uses OIDC via `id-token: write`.
 
 `NVD_API_KEY` is not required by CI (no job invokes `make cve-check`). It's only needed locally when running `make cve-check` or `make ci-run` — in both cases it's read from the local environment. Request one at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key).
 
