@@ -293,9 +293,12 @@ release: deps
 	@bash -c 'read -p "New tag (current: $(CURRENTTAG)): " newtag && \
 		echo "$$newtag" | grep -qE "^v[0-9]+\.[0-9]+\.[0-9]+$$" || { echo "Error: Tag must match vN.N.N"; exit 1; } && \
 		echo -n "Create and push $$newtag? [y/N] " && read ans && [ "$${ans:-N}" = y ] && \
+		AUTHOR_NAME=$$(git config user.name) && \
+		AUTHOR_EMAIL=$$(git config user.email) && \
+		[ -n "$$AUTHOR_NAME" ] && [ -n "$$AUTHOR_EMAIL" ] || { echo "Error: git user.name / user.email must be set"; exit 1; } && \
 		echo $$newtag > ./version.txt && \
 		git add ./version.txt && \
-		git commit -s -m "Cut $$newtag release" && \
+		git commit -s --author="$$AUTHOR_NAME <$$AUTHOR_EMAIL>" -m "Cut $$newtag release" && \
 		git tag $$newtag && \
 		git push origin $$newtag && \
 		git push && \
