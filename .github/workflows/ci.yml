@@ -6,55 +6,53 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-    paths-ignore:
-      - '*.md'
-      - '!CLAUDE.md'
-      - 'docs/**'
-      - 'specs/**'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.claudeignore'
-      - '.claude/**'
-      - 'benchmarks/**'
-      - '**.png'
-      - '**.jpg'
-      - '**.gif'
-      - '**.svg'
   pull_request:
-    paths-ignore:
-      - '*.md'
-      - '!CLAUDE.md'
-      - 'docs/**'
-      - 'specs/**'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.claudeignore'
-      - '.claude/**'
-      - 'benchmarks/**'
-      - '**.png'
-      - '**.jpg'
-      - '**.gif'
-      - '**.svg'
   workflow_call:
 
 permissions:
   contents: read
+  pull-requests: read   # dorny/paths-filter listFiles() on PR events
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+    - name: Detect code changes
+      uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
+      id: filter
+      with:
+        filters: |
+          code:
+            - '!(**.md|docs/**|specs/**|LICENSE|.gitignore|.claudeignore|.claude/**|benchmarks/**|**.png|**.jpg|**.gif|**.svg)'
+            - 'CLAUDE.md'
+
   static-check:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        fetch-depth: 0   # gitleaks scans full git history
 
-    - name: Set up mise
+    - name: Set up toolchain (mise)
       uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+      with:
+        install: true
+        cache: true
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
@@ -67,7 +65,8 @@ jobs:
       run: make static-check
 
   build:
-    needs: [static-check]
+    needs: [changes, static-check]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -75,11 +74,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: Set up JDK
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+    - name: Set up toolchain (mise)
+      uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
       with:
-        java-version: 21
-        distribution: 'semeru'
+        install: true
+        cache: true
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
@@ -95,7 +94,8 @@ jobs:
       run: make run
 
   integration-test:
-    needs: [static-check]
+    needs: [changes, static-check]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -103,11 +103,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: Set up JDK
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+    - name: Set up toolchain (mise)
+      uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
       with:
-        java-version: 21
-        distribution: 'semeru'
+        install: true
+        cache: true
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
@@ -120,7 +120,8 @@ jobs:
       run: make integration-test
 
   test:
-    needs: [static-check]
+    needs: [changes, static-check]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -128,11 +129,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: Set up JDK
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+    - name: Set up toolchain (mise)
+      uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
       with:
-        java-version: 21
-        distribution: 'semeru'
+        install: true
+        cache: true
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6
@@ -169,7 +170,8 @@ jobs:
         retention-days: 14
 
   docker:
-    needs: [build, test, integration-test]
+    needs: [changes, build, test, integration-test]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -219,34 +221,14 @@ jobs:
       uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
       with:
         image-ref: ${{ env.SCAN_IMAGE }}
+        scanners: 'vuln,secret,misconfig'
         severity: CRITICAL,HIGH
         exit-code: '1'
         ignore-unfixed: true
         vuln-type: os,library
 
     - name: Smoke test
-      run: |
-        set -euo pipefail
-        echo "=== Smoke test: default entrypoint (FIPS flags baked in) ==="
-        docker run --rm --name smoke-test ${{ env.SCAN_IMAGE }} | tee smoke.log
-        grep -q '=== FIPS Validator Runner ===' smoke.log \
-          || { echo "Missing header — runner did not start cleanly."; exit 1; }
-        grep -q '=== FIPS Validator Runner Complete ===' smoke.log \
-          || { echo "Missing footer — runner exited early."; exit 1; }
-        grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' smoke.log \
-          || { echo "Missing status line — getFIPSStatus() not reached."; exit 1; }
-        grep -q 'Security Providers:' smoke.log \
-          || { echo "Missing providers section — printFIPSProviders() not reached."; exit 1; }
-        grep -q 'OpenJCEPlusFIPS' smoke.log \
-          || { echo "Missing OpenJCEPlusFIPS provider — Semeru FIPS runtime regression or profile dropped?"; exit 1; }
-
-        echo "=== Smoke test: negative case (no FIPS flags) ==="
-        docker run --rm --name smoke-test-neg \
-          --entrypoint java ${{ env.SCAN_IMAGE }} \
-          -cp '/app/lib/*' org.example.FIPSValidatorRunner | tee smoke-neg.log
-        grep -q 'Status: FIPS mode is DISABLED' smoke-neg.log \
-          || { echo "Negative case: expected DISABLED without -Dsemeru.fips flag, but got something else."; exit 1; }
-        echo "Smoke tests passed."
+      run: make image-smoke-test IMAGE=${{ env.SCAN_IMAGE }}
 
     - name: Log in to GHCR
       if: startsWith(github.ref, 'refs/tags/')
@@ -283,7 +265,7 @@ jobs:
 
   ci-pass:
     if: always()
-    needs: [static-check, build, test, integration-test, docker]
+    needs: [changes, static-check, build, test, integration-test, docker]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

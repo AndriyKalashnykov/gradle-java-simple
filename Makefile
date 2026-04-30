@@ -115,34 +115,54 @@ trivy-fs: deps-trivy
 	@trivy fs --scanners vuln,secret,misconfig --severity CRITICAL,HIGH --exit-code 1 .
 
 #diagrams-check: @ Syntax-check PlantUML diagrams under docs/diagrams/
-diagrams-check:
-	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for diagrams-check"; exit 1; }
+diagrams-check: deps-docker
 	@set -euo pipefail; \
 	PUML_FILES=$$(find docs/diagrams -maxdepth 2 -name '*.puml' 2>/dev/null || true); \
 	if [ -z "$$PUML_FILES" ]; then \
 		echo "No .puml files found — skipping."; \
 		exit 0; \
 	fi; \
+	IMAGE=plantuml/plantuml:$(PLANTUML_VERSION); \
+	for attempt in 1 2 3; do \
+		if docker pull --quiet "$$IMAGE" >/dev/null 2>&1; then break; fi; \
+		if [ "$$attempt" -eq 3 ]; then \
+			echo "ERROR: docker pull $$IMAGE failed after 3 attempts (Docker Hub flake or rate limit)"; \
+			exit 1; \
+		fi; \
+		delay=$$((attempt * 5)); \
+		echo "  ! docker pull failed (attempt $$attempt/3); retrying in $${delay}s..."; \
+		sleep "$$delay"; \
+	done; \
 	echo "Syntax-checking $$(echo $$PUML_FILES | wc -w) PlantUML file(s)..."; \
-	docker run --rm -v "$$PWD:/work" -w /work \
-		plantuml/plantuml:$(PLANTUML_VERSION) -checkonly $$PUML_FILES
+	docker run --rm -v "$$PWD:/work:ro" -w /work \
+		"$$IMAGE" -checkonly $$PUML_FILES
 	@echo "  ✓ All PlantUML diagrams parse cleanly."
 
 #mermaid-lint: @ Validate Mermaid diagrams in markdown files
-mermaid-lint:
-	@command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required for mermaid-lint"; exit 1; }
+mermaid-lint: deps-docker
 	@set -euo pipefail; \
 	MD_FILES=$$(grep -lF '```mermaid' README.md CLAUDE.md 2>/dev/null || true); \
 	if [ -z "$$MD_FILES" ]; then \
 		echo "No Mermaid blocks found — skipping."; \
 		exit 0; \
 	fi; \
+	IMAGE=minlag/mermaid-cli:$(MERMAID_CLI_VERSION); \
+	for attempt in 1 2 3; do \
+		if docker pull --quiet "$$IMAGE" >/dev/null 2>&1; then break; fi; \
+		if [ "$$attempt" -eq 3 ]; then \
+			echo "ERROR: docker pull $$IMAGE failed after 3 attempts (Docker Hub flake or rate limit)"; \
+			exit 1; \
+		fi; \
+		delay=$$((attempt * 5)); \
+		echo "  ! docker pull failed (attempt $$attempt/3); retrying in $${delay}s..."; \
+		sleep "$$delay"; \
+	done; \
 	FAILED=0; \
 	for md in $$MD_FILES; do \
 		echo "Validating Mermaid blocks in $$md..."; \
 		LOG=$$(mktemp); \
-		if docker run --rm -v "$$PWD:/data" \
-			minlag/mermaid-cli:$(MERMAID_CLI_VERSION) \
+		if docker run --rm -v "$$PWD:/data:ro" \
+			"$$IMAGE" \
 			-i "/data/$$md" -o "/tmp/$$(basename $$md .md).svg" >"$$LOG" 2>&1; then \
 			echo "  ✓ All blocks rendered cleanly."; \
 		else \
@@ -225,6 +245,31 @@ image-stop:
 #image-build-run: @ Build and run Docker image
 image-build-run: image-build image-run
 
+#image-smoke-test: @ Run FIPS smoke test against an image (override IMAGE=...)
+image-smoke-test: deps-docker
+	@set -euo pipefail; \
+	IMG="$${IMAGE:-$(DOCKER_IMAGE)}"; \
+	echo "=== Smoke test: default entrypoint (FIPS flags baked in) ==="; \
+	docker run --rm --name smoke-test "$$IMG" | tee smoke.log; \
+	grep -q '=== FIPS Validator Runner ===' smoke.log \
+		|| { echo "Missing header — runner did not start cleanly."; exit 1; }; \
+	grep -q '=== FIPS Validator Runner Complete ===' smoke.log \
+		|| { echo "Missing footer — runner exited early."; exit 1; }; \
+	grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' smoke.log \
+		|| { echo "Missing status line — getFIPSStatus() not reached."; exit 1; }; \
+	grep -q 'Security Providers:' smoke.log \
+		|| { echo "Missing providers section — printFIPSProviders() not reached."; exit 1; }; \
+	grep -q 'OpenJCEPlusFIPS' smoke.log \
+		|| { echo "Missing OpenJCEPlusFIPS provider — Semeru FIPS runtime regression or profile dropped?"; exit 1; }; \
+	echo "=== Smoke test: negative case (no FIPS flags) ==="; \
+	docker run --rm --name smoke-test-neg \
+		--entrypoint java "$$IMG" \
+		-cp '/app/lib/*' org.example.FIPSValidatorRunner | tee smoke-neg.log; \
+	grep -q 'Status: FIPS mode is DISABLED' smoke-neg.log \
+		|| { echo "Negative case: expected DISABLED without -Dsemeru.fips flag, but got something else."; exit 1; }; \
+	echo "Smoke tests passed."; \
+	rm -f smoke.log smoke-neg.log
+
 #image-push: @ Push Docker image to registry
 image-push: image-build
 	@docker push $(DOCKER_FULL_IMAGE)
@@ -244,7 +289,6 @@ renovate-bootstrap:
 
 #renovate-validate: @ Validate Renovate configuration
 renovate-validate: renovate-bootstrap
-	@command -v mise >/dev/null 2>&1 || { echo "Error: mise required. Run: make deps-install"; exit 1; }
 	@mise exec node -- npx -p renovate -c "renovate-config-validator"
 
 #deps-prune: @ Show dependency tree for manual pruning review
@@ -275,14 +319,21 @@ ci: deps static-check test integration-test coverage-check build
 #ci-run: @ Run GitHub Actions workflow locally using act
 ci-run: deps-act
 	@docker container prune -f 2>/dev/null || true
+	@# Generate minimal push-event payload — dorny/paths-filter falls back
+	@# to repository.default_branch on push events, but act's synthetic payload
+	@# omits that field and the action errors. See /ci-workflow §"Local CI with act".
 	@# Pass secret NAMES only (no =VALUE) so act reads values from env —
 	@# avoids leaking credentials in `ps aux` output.
-	@act push --container-architecture linux/amd64 \
+	@evt=$$(mktemp /tmp/act-push-event.XXXXXX.json); \
+	printf '{"ref":"refs/heads/main","repository":{"default_branch":"main","name":"$(APP_NAME)","full_name":"andriykalashnykov/$(APP_NAME)"}}' >"$$evt"; \
+	act push --container-architecture linux/amd64 \
 		--artifact-server-path /tmp/act-artifacts \
+		--eventpath "$$evt" \
 		--var ACT=true \
 		$$([ -n "$${NVD_API_KEY:-}" ] && echo "--secret NVD_API_KEY") \
 		$$([ -n "$${OSS_INDEX_USER:-}" ] && echo "--secret OSS_INDEX_USER") \
-		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "--secret OSS_INDEX_TOKEN")
+		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "--secret OSS_INDEX_TOKEN"); \
+	rc=$$?; rm -f "$$evt"; exit $$rc
 
 #ci-docker: @ Run full CI pipeline including Docker build
 ci-docker: ci image-build
@@ -315,6 +366,6 @@ tmux-session:
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
 	deps-hadolint deps-gitleaks deps-trivy deps-docker \
-	image-build image-run image-stop image-build-run image-push \
+	image-build image-run image-stop image-build-run image-smoke-test image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
 	deps-prune deps-prune-check deps-act ci ci-run ci-docker release tmux-session

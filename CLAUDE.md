@@ -27,7 +27,8 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make secrets` | Scan for hardcoded secrets with gitleaks |
 | `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, misconfigurations |
 | `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
-| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint) |
+| `make diagrams-check` | Syntax-check PlantUML diagrams under `docs/diagrams/` |
+| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
@@ -42,6 +43,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make image-run` | Run Docker image |
 | `make image-stop` | Stop running Docker container |
 | `make image-build-run` | Build and run Docker image |
+| `make image-smoke-test` | Run FIPS smoke test against an image (`IMAGE=...` to override) |
 | `make image-push` | Push Docker image to registry |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make upgrade` | Check for dependency updates |
@@ -112,15 +114,17 @@ Configure push target with environment variables:
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`):
-- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) — runs first (cheapest, fail-fast)
-- **build** job: `make build`, `make run` — runs after static-check passes (`needs: [static-check]`)
-- **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check (`needs: [static-check]`)
-- **integration-test** job: `make integration-test` (`FIPSValidatorRunnerIT` subprocess suite) — runs in parallel with build/test after static-check (`needs: [static-check]`)
-- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test, canonical two-build pattern with GHA cache). `push` (to `ghcr.io/andriykalashnykov/gradle-java-fips-test`) and `cosign sign` steps are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Uses `${{ secrets.GITHUB_TOKEN }}` for GHCR login (no user-configured secrets needed); requires `id-token: write` for cosign keyless OIDC and `packages: write` for GHCR publish. `needs: [build, test, integration-test]`
-- **ci-pass** job: aggregate status gate (`if: always()`, `needs` all above) — use this as the branch-protection required check
+- **changes** job: `dorny/paths-filter` — sets `code` output to gate heavy jobs. Doc-only PRs (matching `**.md|docs/**|specs/**|LICENSE|.gitignore|.claudeignore|.claude/**|benchmarks/**|**.png|**.jpg|**.gif|**.svg`, with `CLAUDE.md` re-included) skip the rest of the pipeline; `ci-pass` reports green via `skipped ≠ failure`. Required-check pattern is portfolio-mandatory regardless of branch-protection system (Repository Rulesets / Classic BP).
+- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) — runs first (cheapest, fail-fast). `needs: [changes]`
+- **build** job: `make build`, `make run` — runs after static-check passes. `needs: [changes, static-check]`
+- **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check. `needs: [changes, static-check]`
+- **integration-test** job: `make integration-test` (`FIPSValidatorRunnerIT` subprocess suite) — runs in parallel with build/test after static-check. `needs: [changes, static-check]`
+- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test via `make image-smoke-test`, canonical two-build pattern with GHA cache). `push` (to `ghcr.io/andriykalashnykov/gradle-java-fips-test`) and `cosign sign` steps are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Uses `${{ secrets.GITHUB_TOKEN }}` for GHCR login (no user-configured secrets needed); requires `id-token: write` for cosign keyless OIDC and `packages: write` for GHCR publish. `needs: [changes, build, test, integration-test]`
+- **ci-pass** job: aggregate status gate (`if: always()`, `needs` all above including `changes`) — use this as the branch-protection required check
 - **concurrency**: superseded runs on the same branch are automatically cancelled
-- Hybrid toolchain install in CI: `jdx/mise-action@v4` in `static-check` (needs hadolint + gitleaks + trivy from `.mise.toml`); `actions/setup-java@v5 distribution: semeru` in `build` / `test` / `integration-test` (Java-only, faster cold cache). `gradle/actions/setup-gradle@v6` handles Gradle caching. Local dev is 100% mise; the Makefile targets are agnostic to how binaries got on PATH.
+- Toolchain install in CI: `jdx/mise-action@v4` in every job — single source of truth is `.mise.toml` (Java + Node + hadolint + gitleaks + trivy + act). `gradle/actions/setup-gradle@v6` provides Gradle build caching on top. No `actions/setup-java` — eliminates parallel pinning between `.mise.toml` and the workflow YAML.
 - `workflow_call` trigger supports reuse from other workflows
+- `pull-requests: read` workflow permission required for `dorny/paths-filter` on PR events
 
 Cleanup workflow (`.github/workflows/cleanup-runs.yml`): weekly cron that deletes old workflow runs (retains 7 days, minimum 5 runs).
 
