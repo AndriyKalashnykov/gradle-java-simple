@@ -194,7 +194,7 @@ A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old work
 
 ### Required Secrets and Variables
 
-No user-configured secrets or variables are required. The `docker` job pushes to [GHCR](https://ghcr.io) at `ghcr.io/andriykalashnykov/gradle-java-fips-test` using the auto-provided `GITHUB_TOKEN` (scoped via the job's `packages: write` permission). Cosign keyless signing uses OIDC via `id-token: write`.
+No user-configured secrets or variables are required. The `docker` job pushes to [GHCR](https://ghcr.io) at `ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test` using the auto-provided `GITHUB_TOKEN` (scoped via the job's `packages: write` permission). Cosign keyless signing uses OIDC via `id-token: write` and signs every tag emitted by `docker/metadata-action` (anchored to the manifest digest).
 
 `NVD_API_KEY` is not required by CI (no job invokes `make cve-check`). It's only needed locally when running `make cve-check` or `make ci-run` — in both cases it's read from the local environment. Request one at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key).
 
