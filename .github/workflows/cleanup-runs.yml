@@ -39,9 +39,20 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Delete caches from deleted branches
+      - name: Delete caches from merged/deleted branches
         run: |
-          gh cache list --repo "${{ github.repository }}" --limit 100 \
-            --json id,ref \
-          | jq -r '.[] | select(.ref | startswith("refs/pull/") | not) | select(.ref != "refs/heads/main") | .id' \
-          | xargs -r -I{} gh cache delete {} --repo "${{ github.repository }}" || true
+          echo "=== Cleaning caches from non-existent branches ==="
+          gh cache list --repo "${{ github.repository }}" --json id,ref,key --limit 200 \
+          | jq -r '.[] | "\(.id)\t\(.ref)\t\(.key)"' \
+          | while IFS=$'\t' read -r id ref key; do
+              branch="${ref#refs/heads/}"
+              # Keep caches for main, default branch, tags, and PR refs
+              if [ "$branch" = "main" ] || [[ "$ref" == refs/tags/* ]] || [[ "$ref" == refs/pull/* ]]; then
+                continue
+              fi
+              # Check if branch still exists
+              if ! gh api "repos/${{ github.repository }}/branches/${branch}" --silent 2>/dev/null; then
+                echo "Deleting cache ${key} (branch ${branch} no longer exists)"
+                gh cache delete "$id" --repo "${{ github.repository }}" 2>/dev/null || true
+              fi
+            done

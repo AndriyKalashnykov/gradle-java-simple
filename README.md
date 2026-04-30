@@ -7,8 +7,6 @@
 
 A Gradle-based Java 21 project that validates [FIPS 140-3](https://csrc.nist.gov/projects/cryptographic-module-validation-program) compliance using IBM Semeru JDK. It detects FIPS mode by inspecting JDK system properties, JCE crypto policy, and registered security providers.
 
-## Architecture
-
 <p align="center">
   <img src="docs/diagrams/out/context.png" alt="Gradle Java FIPS Validation — System Context (C4)" width="520">
 </p>
@@ -145,6 +143,7 @@ Builds a multi-stage image: Gradle builder + IBM Semeru 21 FIPS runtime (UBI9).
 | `make image-run` | Run Docker image |
 | `make image-stop` | Stop running Docker container |
 | `make image-build-run` | Build and run Docker image |
+| `make image-smoke-test` | Run FIPS smoke test against an image (`IMAGE=...` to override) |
 | `make image-push` | Push Docker image to registry |
 
 Configure the push target with environment variables:
@@ -181,14 +180,15 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `
 
 | Job | Triggers | Steps | `needs:` |
 |-----|----------|-------|----------|
-| **static-check** | push, PR, tags | `make static-check` | — |
-| **build** | push, PR, tags | `make build`, `make run` | `static-check` |
-| **test** | push, PR, tags | `make test`, `make coverage-check` | `static-check` |
-| **integration-test** | push, PR, tags | `make integration-test` (spawn-JVM subprocess suite) | `static-check` |
-| **docker** | push, PR, tags (push/sign tag-gated) | Build → Trivy scan → smoke test (incl. negative case) → (tag-only) push + cosign sign | `build`, `test`, `integration-test` |
-| **ci-pass** | all | Aggregate status gate | all above |
+| **changes** | push, PR, tags | `dorny/paths-filter` — sets `code` output for doc-only-skip gate | — |
+| **static-check** | code change | `make static-check` | `changes` |
+| **build** | code change | `make build`, `make run` | `changes`, `static-check` |
+| **test** | code change | `make test`, `make coverage-check` | `changes`, `static-check` |
+| **integration-test** | code change | `make integration-test` (spawn-JVM subprocess suite) | `changes`, `static-check` |
+| **docker** | code change (push/sign tag-gated) | Build → Trivy scan → smoke test (incl. negative case) → (tag-only) push + cosign sign | `changes`, `build`, `test`, `integration-test` |
+| **ci-pass** | all | Aggregate status gate (treats `skipped` as pass) | all above |
 
-`build`, `test`, and `integration-test` run in parallel after `static-check` passes. The `docker` job builds and scans the image on every push; `push` and `cosign sign` only fire on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
+A cheap `changes` detector job gates the heavy jobs via `dorny/paths-filter` — doc-only PRs skip CI work cleanly and `ci-pass` still reports green. `build`, `test`, and `integration-test` run in parallel after `static-check` passes. The `docker` job builds and scans the image on every push; `push` and `cosign sign` only fire on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs and caches (retains 7 days, minimum 5 runs).
 
