@@ -169,6 +169,7 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-pu
 | `make upgrade` | Check for dependency updates |
 | `make deps-prune` | Show dependency tree for manual pruning review |
 | `make deps-resolve-check` | Verify all declared dependencies resolve cleanly (CI gate) |
+| `make ci-mirror-check` | Lint that CI workflow `run: make X` calls match Makefile reality (CI gate) |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make renovate-bootstrap` | Ensure Node is installed (via mise) |
 | `make renovate-validate` | Validate Renovate configuration |
