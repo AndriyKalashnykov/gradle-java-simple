@@ -142,8 +142,11 @@ jobs:
         build-scan-terms-of-use-url: 'https://gradle.com/help/legal-terms-of-use'
         build-scan-terms-of-use-agree: 'yes'
 
-    - name: Test
+    - name: Test (FIPS-focused)
       run: make test
+
+    - name: Coverage report (full suite)
+      run: make coverage-generate
 
     - name: Verify coverage
       run: make coverage-check
