@@ -3,7 +3,10 @@
  */
 package org.example;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -21,10 +24,21 @@ class FIPSValidatorTest {
   }
 
   @Test
-  @DisplayName("isFIPSModeEnabled should return a boolean value")
-  void isFIPSModeEnabledReturnsBoolean() {
-    boolean result = fipsValidator.isFIPSModeEnabled();
-    assertTrue(result || !result); // Should return either true or false
+  @DisplayName("isFIPSModeEnabled returns false when no FIPS indicator is present")
+  void isFIPSModeEnabledReturnsFalseWithoutIndicators() {
+    // Suite is launched with -Dsemeru.fips=false (see app/build.gradle test{} block).
+    // No customprofile, no com.redhat.fips, no FIPS provider on this runtime —
+    // so all detection branches must return false.
+    String semeruFips = System.getProperty("semeru.fips");
+    String customProfile = System.getProperty("semeru.customprofile");
+    String redHatFips = System.getProperty("com.redhat.fips");
+
+    // Sanity-check the test environment matches the assumption above before asserting.
+    assertEquals("false", semeruFips, "Test suite must run with -Dsemeru.fips=false");
+    assertTrue(customProfile == null || !customProfile.contains("FIPS"));
+    assertTrue(redHatFips == null || !"true".equalsIgnoreCase(redHatFips));
+
+    assertFalse(fipsValidator.isFIPSModeEnabled());
   }
 
   @Test

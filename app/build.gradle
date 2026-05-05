@@ -111,6 +111,10 @@ dependencyCheck {
     // so that the key is not leaked.
     nvd.apiKey = findProperty("owasp.nvdApiKey") ?: System.getenv("NVD_API_KEY")
 
+    // OSS Index credentials are read from environment, never from CLI args
+    // (argv leaks via `ps -ef` / `/proc/<pid>/cmdline`).
+    analyzers.ossIndex.username = System.getenv("OSS_INDEX_USER") ?: ""
+    analyzers.ossIndex.password = System.getenv("OSS_INDEX_TOKEN") ?: ""
 
     // Format of the report (XML, HTML, CSV, JSON, JUNIT, ALL)
     formats = ['HTML', 'JSON', 'XML']

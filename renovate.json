@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate config for gradle-java-simple. Notes: (1) `gradle` manager natively covers `libs.versions.toml` — no separate gradle-version-catalog manager needed. (2) Native `mise` manager intentionally omitted; inline `# renovate:` comments in `.mise.toml` are the single source of truth (avoids duplicate-PR risk from datasource mismatch).",
   "extends": [
     "config:best-practices",
     ":semanticCommitType(chore)"
@@ -37,7 +38,7 @@
       "description": "Update Makefile tool versions via inline renovate comments",
       "managerFilePatterns": ["/^Makefile$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)( versioning=(?<versioning>[^\\s]+))?( extractVersion=(?<extractVersion>[^\\s]+))?\\n[A-Z_]+\\s*:=\\s*(?<currentValue>[^\\s]+)"
+        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)( versioning=(?<versioning>[^\\s]+))?( extractVersion=(?<extractVersion>[^\\s]+))?\\n[A-Z_][A-Z0-9_]*\\s*:=\\s*(?<currentValue>[^\\s]+)"
       ]
     },
     {
@@ -77,11 +78,24 @@
       "groupName": "GitHub Actions"
     },
     {
-      "description": "Group Makefile tool versions",
+      "description": "Group Makefile tool version pins (custom regex)",
       "matchManagers": [
         "custom.regex"
       ],
+      "matchFileNames": [
+        "Makefile"
+      ],
       "groupName": "Makefile tools"
+    },
+    {
+      "description": "Group .mise.toml tool pins (custom regex)",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchFileNames": [
+        ".mise.toml"
+      ],
+      "groupName": "mise tools"
     },
     {
       "description": "Label Java packages",
@@ -100,9 +114,17 @@
       ]
     },
     {
-      "description": "Group Docker base images",
+      "description": "Group Docker base images (all update types — applies to majors as well, overriding the global non-major group)",
       "matchDatasources": [
         "docker"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
       ],
       "groupName": "Docker dependencies"
     }

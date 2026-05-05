@@ -3,8 +3,14 @@
  */
 package org.example;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -155,6 +161,44 @@ class AppTest {
     assertEquals("", app.formatMessage("", true));
     assertEquals("", app.formatMessage(null, false));
     assertEquals("", app.formatMessage("   ", true));
+  }
+
+  @Test
+  @DisplayName("App.main with no args prints greeting, messages line, and FIPS status")
+  void mainWithNoArgs() {
+    String output = captureMain(new String[] {});
+
+    assertTrue(output.contains("HELLO WORLD!"), output);
+    // No personal greeting line when args is empty.
+    assertFalse(output.contains("HELLO TESTER!"), output);
+    assertTrue(output.contains("Messages: Welcome to the application!"), output);
+    assertTrue(
+        output.contains("FIPS mode is ENABLED") || output.contains("FIPS mode is DISABLED"),
+        output);
+    assertTrue(output.contains("Security Providers:"), output);
+  }
+
+  @Test
+  @DisplayName("App.main with one arg prints both default and personal greetings")
+  void mainWithOneArg() {
+    String output = captureMain(new String[] {"Tester"});
+
+    assertTrue(output.contains("HELLO WORLD!"), output);
+    assertTrue(output.contains("HELLO TESTER!"), output);
+    assertTrue(output.contains("Messages: Welcome to the application!"), output);
+    assertTrue(output.contains("Security Providers:"), output);
+  }
+
+  private static String captureMain(String[] args) {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    try (PrintStream captured = new PrintStream(buffer, true, StandardCharsets.UTF_8)) {
+      System.setOut(captured);
+      App.main(args);
+    } finally {
+      System.setOut(originalOut);
+    }
+    return buffer.toString(StandardCharsets.UTF_8);
   }
 
   @Test

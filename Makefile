@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
-export PATH := $(HOME)/.local/bin:$(PATH)
+export PATH := $(HOME)/.local/share/mise/shims:$(HOME)/.local/bin:$(PATH)
 
 APP_NAME    := gradle-java-fips-test
 GRADLE      := ./gradlew
@@ -192,11 +192,8 @@ run: deps
 
 #cve-check: @ Run OWASP dependency vulnerability scan (needs NVD_API_KEY)
 cve-check: deps
-	@[ -n "$${NVD_API_KEY:-}" ] || echo "Warning: NVD_API_KEY not set"
-	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all \
-		$$([ -n "$${NVD_API_KEY:-}" ] && echo "-PnvdApiKey=$$NVD_API_KEY") \
-		$$([ -n "$${OSS_INDEX_USER:-}" ] && echo "-PossIndexUser=$$OSS_INDEX_USER") \
-		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "-PossIndexToken=$$OSS_INDEX_TOKEN")
+	@[ -n "$$NVD_API_KEY" ] || echo "Warning: NVD_API_KEY not set"
+	@$(GRADLE) :app:securityScan $(NO_CACHE) --warning-mode all
 
 #cve-db-update: @ Update vulnerability database manually
 cve-db-update: deps
@@ -211,7 +208,8 @@ coverage-generate: deps
 	@$(GRADLE) test jacocoTestReport
 
 #coverage-check: @ Verify code coverage meets minimum threshold (> 60%)
-coverage-check: coverage-generate
+coverage-check: deps
+	@[ -f app/build/jacoco/test.exec ] || { echo "ERROR: jacoco exec missing. Run 'make coverage-generate' first."; exit 1; }
 	@$(GRADLE) jacocoTestCoverageVerification
 
 #coverage-open: @ Open code coverage report in browser
@@ -235,7 +233,7 @@ image-build: deps-docker build
 	@docker tag $(DOCKER_IMAGE) $(DOCKER_FULL_IMAGE)
 
 #image-run: @ Run Docker image
-image-run: deps-docker
+image-run: deps-docker image-stop
 	@docker run --rm --name $(APP_NAME) $(DOCKER_IMAGE)
 
 #image-stop: @ Stop running Docker container
@@ -250,6 +248,7 @@ image-smoke-test: deps-docker
 	@set -euo pipefail; \
 	IMG="$${IMAGE:-$(DOCKER_IMAGE)}"; \
 	echo "=== Smoke test: default entrypoint (FIPS flags baked in) ==="; \
+	set -o pipefail; \
 	docker run --rm --name smoke-test "$$IMG" | tee smoke.log; \
 	grep -q '=== FIPS Validator Runner ===' smoke.log \
 		|| { echo "Missing header — runner did not start cleanly."; exit 1; }; \
@@ -262,6 +261,7 @@ image-smoke-test: deps-docker
 	grep -q 'OpenJCEPlusFIPS' smoke.log \
 		|| { echo "Missing OpenJCEPlusFIPS provider — Semeru FIPS runtime regression or profile dropped?"; exit 1; }; \
 	echo "=== Smoke test: negative case (no FIPS flags) ==="; \
+	set -o pipefail; \
 	docker run --rm --name smoke-test-neg \
 		--entrypoint java "$$IMG" \
 		-cp '/app/lib/*' org.example.FIPSValidatorRunner | tee smoke-neg.log; \
@@ -297,13 +297,13 @@ deps-prune: deps
 	@$(GRADLE) :app:dependencies --configuration runtimeClasspath
 	@echo "=== Review above for unused or redundant dependencies ==="
 
-#deps-prune-check: @ Verify no prunable dependencies (CI gate)
-deps-prune-check: deps
-	@echo "=== Dependency Prune Check (Gradle) ==="
+#deps-resolve-check: @ Verify all declared dependencies resolve cleanly (CI gate)
+deps-resolve-check: deps
+	@echo "=== Dependency Resolve Check (Gradle) ==="
 	@if $(GRADLE) :app:dependencies --configuration runtimeClasspath 2>&1 | grep -iE '(FAILED|could not resolve)'; then \
 		echo "ERROR: Unresolvable dependencies found. Run 'make deps-prune' to review."; exit 1; \
 	fi
-	@echo "No prunable dependency issues detected."
+	@echo "No unresolvable dependencies detected."
 
 #deps-act: @ Ensure act is installed (via mise)
 deps-act: deps
@@ -313,7 +313,7 @@ deps-act: deps
 	}
 
 #ci: @ Run full CI pipeline locally (mirrors GitHub Actions)
-ci: deps static-check test integration-test coverage-check build
+ci: deps static-check test integration-test coverage-generate coverage-check build
 	@echo "=== CI Complete ==="
 
 #ci-run: @ Run GitHub Actions workflow locally using act
@@ -330,9 +330,9 @@ ci-run: deps-act
 		--artifact-server-path /tmp/act-artifacts \
 		--eventpath "$$evt" \
 		--var ACT=true \
-		$$([ -n "$${NVD_API_KEY:-}" ] && echo "--secret NVD_API_KEY") \
-		$$([ -n "$${OSS_INDEX_USER:-}" ] && echo "--secret OSS_INDEX_USER") \
-		$$([ -n "$${OSS_INDEX_TOKEN:-}" ] && echo "--secret OSS_INDEX_TOKEN"); \
+		$$([ -n "$$NVD_API_KEY" ] && echo "--secret NVD_API_KEY") \
+		$$([ -n "$$OSS_INDEX_USER" ] && echo "--secret OSS_INDEX_USER") \
+		$$([ -n "$$OSS_INDEX_TOKEN" ] && echo "--secret OSS_INDEX_TOKEN"); \
 	rc=$$?; rm -f "$$evt"; exit $$rc
 
 #ci-docker: @ Run full CI pipeline including Docker build
@@ -368,4 +368,4 @@ tmux-session:
 	deps-hadolint deps-gitleaks deps-trivy deps-docker \
 	image-build image-run image-stop image-build-run image-smoke-test image-push \
 	gradle-stop upgrade renovate-bootstrap renovate-validate \
-	deps-prune deps-prune-check deps-act ci ci-run ci-docker release tmux-session
+	deps-prune deps-resolve-check deps-act ci ci-run ci-docker release tmux-session
