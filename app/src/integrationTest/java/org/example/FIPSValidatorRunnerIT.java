@@ -85,4 +85,13 @@ class FIPSValidatorRunnerIT {
 
     assertTrue(output.contains("Status: FIPS mode is ENABLED"), output);
   }
+
+  @Test
+  @DisplayName("Runner detects FIPS via Red Hat com.redhat.fips=true (no Semeru flags)")
+  void runnerWithRedHatFipsFlag() throws Exception {
+    String output = runRunner(List.of("-Dsemeru.fips=false", "-Dcom.redhat.fips=true"));
+
+    assertTrue(output.contains("Status: FIPS mode is ENABLED"), output);
+    assertTrue(output.contains("=== FIPS Validator Runner Complete ==="), output);
+  }
 }

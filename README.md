@@ -57,7 +57,7 @@ Install Java via mise (first time only):
 make deps-install
 ```
 
-## Project Structure
+## Architecture
 
 ```text
 app/src/main/java/org/example/
@@ -72,7 +72,7 @@ app/src/main/java/org/example/
 3. Red Hat FIPS property (`com.redhat.fips`)
 4. Registered security providers (OpenJCEPlusFIPS)
 
-## FIPS Runtime Details
+## Usage
 
 The Docker image uses the public IBM Semeru runtime from [IBM Container Registry](https://icr.io/appcafe):
 
@@ -168,7 +168,7 @@ DOCKER_REGISTRY=docker.io DOCKER_REPO=myuser/myimage DOCKER_TAG=v1 make image-pu
 |--------|-------------|
 | `make upgrade` | Check for dependency updates |
 | `make deps-prune` | Show dependency tree for manual pruning review |
-| `make deps-prune-check` | Verify no prunable dependencies (CI gate) |
+| `make deps-resolve-check` | Verify all declared dependencies resolve cleanly (CI gate) |
 | `make gradle-stop` | Stop all Gradle daemons |
 | `make renovate-bootstrap` | Ensure Node is installed (via mise) |
 | `make renovate-validate` | Validate Renovate configuration |

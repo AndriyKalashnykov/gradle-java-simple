@@ -50,7 +50,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make renovate-bootstrap` | Ensure Node is installed (via mise) |
 | `make renovate-validate` | Validate Renovate configuration |
 | `make deps-prune` | Show dependency tree for manual pruning review |
-| `make deps-prune-check` | Verify no prunable dependencies (CI gate) |
+| `make deps-resolve-check` | Verify all declared dependencies resolve cleanly (CI gate) |
 | `make deps-act` | Install act for local GitHub Actions testing |
 | `make ci` | Run full CI pipeline locally (mirrors GitHub Actions) |
 | `make ci-run` | Run GitHub Actions workflow locally using act |

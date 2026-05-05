@@ -46,8 +46,8 @@ jobs:
           | jq -r '.[] | "\(.id)\t\(.ref)\t\(.key)"' \
           | while IFS=$'\t' read -r id ref key; do
               branch="${ref#refs/heads/}"
-              # Keep caches for main, default branch, tags, and PR refs
-              if [ "$branch" = "main" ] || [[ "$ref" == refs/tags/* ]] || [[ "$ref" == refs/pull/* ]]; then
+              # Keep caches for main and tags only — PR caches are pruned when the source branch is gone
+              if [ "$branch" = "main" ] || [[ "$ref" == refs/tags/* ]]; then
                 continue
               fi
               # Check if branch still exists
