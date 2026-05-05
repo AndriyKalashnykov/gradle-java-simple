@@ -28,7 +28,8 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, misconfigurations |
 | `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
 | `make diagrams-check` | Syntax-check PlantUML diagrams under `docs/diagrams/` |
-| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) |
+| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check) |
+| `make ci-mirror-check` | Lint that the CI workflow's `run: make X` step sequences match Makefile reality (catches divergence like missing `coverage-generate` between filtered `test` and `coverage-check`) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |

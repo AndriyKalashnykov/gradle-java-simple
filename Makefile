@@ -173,8 +173,70 @@ mermaid-lint: deps-docker
 	done; \
 	if [ "$$FAILED" -gt 0 ]; then echo "Mermaid lint: $$FAILED file(s) had parse errors."; exit 1; fi
 
-#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check)
-static-check: format-check lint secrets trivy-fs mermaid-lint diagrams-check
+#ci-mirror-check: @ Verify CI workflow's `run: make X` calls match Makefile reality
+ci-mirror-check:
+	@set -euo pipefail; \
+	WORKFLOW=.github/workflows/ci.yml; \
+	[ -f "$$WORKFLOW" ] || { echo "  - skip: $$WORKFLOW not found"; exit 0; }; \
+	fail=0; \
+	tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	awk '\
+		/^  [a-z][a-z-]+:$$/ && !/^    / { gsub(":",""); job=$$1 } \
+		/^    - name:/ { in_step=1 } \
+		in_step && /^      run:/ && /make / { \
+			match($$0, /make [a-z][a-z-]+/); \
+			while (RSTART > 0) { \
+				print job, substr($$0, RSTART+5, RLENGTH-5); \
+				$$0 = substr($$0, RSTART + RLENGTH); \
+				match($$0, /make [a-z][a-z-]+/); \
+			} \
+		} \
+	' "$$WORKFLOW" >"$$tmp"; \
+	echo "=== Layer 1: every workflow 'make X' exists in Makefile ==="; \
+	while read -r job target; do \
+		if ! grep -qE "^$$target:" Makefile; then \
+			echo "  ✗ job=$$job target=make $$target — NOT in Makefile"; \
+			fail=1; \
+		fi; \
+	done <"$$tmp"; \
+	[ $$fail -eq 0 ] && echo "  ✓ all referenced targets exist"; \
+	echo "=== Layer 2: ordering rule — coverage-check requires producer first ==="; \
+	test_recipe=$$(awk '/^test:/{flag=1; next} flag && /^[^\t #]/{flag=0} flag' Makefile); \
+	test_is_filtered=false; \
+	if echo "$$test_recipe" | grep -qE -- '--tests|-run |--filter|--tests='; then \
+		test_is_filtered=true; \
+	fi; \
+	for job in $$(awk '{print $$1}' "$$tmp" | sort -u); do \
+		seq=$$(awk -v j="$$job" '$$1==j {print $$2}' "$$tmp" | tr '\n' ' '); \
+		case " $$seq " in \
+			*" coverage-check "*) \
+				prefix=$$(echo "$$seq" | sed 's/coverage-check.*//'); \
+				producer_found=false; \
+				if echo " $$prefix " | grep -qE ' (coverage-generate|test-all) '; then \
+					producer_found=true; \
+					echo "  ✓ job=$$job: coverage-generate (or test-all) precedes coverage-check"; \
+				elif echo " $$prefix " | grep -qE ' test ' && [ "$$test_is_filtered" = "false" ]; then \
+					producer_found=true; \
+					echo "  ✓ job=$$job: full-suite 'make test' precedes coverage-check"; \
+				fi; \
+				if [ "$$producer_found" = "false" ]; then \
+					echo "  ✗ job=$$job: coverage-check called but no producer precedes it in the same job"; \
+					if [ "$$test_is_filtered" = "true" ]; then \
+						echo "    'make test' is FILTERED (recipe uses --tests / -run / --filter) — it does NOT produce full coverage."; \
+					fi; \
+					echo "    Step sequence in this job: $$seq"; \
+					echo "    Fix: insert 'make coverage-generate' between 'make test' and 'make coverage-check' in the workflow."; \
+					fail=1; \
+				fi ;; \
+		esac; \
+	done; \
+	[ $$fail -eq 0 ] || { echo ""; echo "ci-mirror-check FAILED — workflow / Makefile divergence."; exit 1; }; \
+	echo ""; \
+	echo "ci-mirror-check passed."
+
+#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check)
+static-check: format-check lint secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check
 	@echo "Static check passed."
 
 #test: @ Run FIPS validator tests (FIPSValidatorTest only)
@@ -362,7 +424,7 @@ tmux-session:
 	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
 
 .PHONY: help deps deps-install deps-check clean build format format-check lint \
-	secrets trivy-fs mermaid-lint diagrams-check static-check test integration-test run \
+	secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check static-check test integration-test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
 	deps-hadolint deps-gitleaks deps-trivy deps-docker \
