@@ -23,6 +23,16 @@ FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:7336720a
 
 WORKDIR /app
 
+# Patch CVEs that the base image carries. The Semeru runtime image defaults
+# to USER 1001, so flip back to root for microdnf, then return to 1001.
+# CVE-2026-4878: libcap TOCTOU race; fixed in 2.48-10.el9_7.1.
+# Refresh whenever Trivy flags a HIGH/CRITICAL fixed in the UBI 9 stream.
+USER root
+RUN microdnf update -y \
+    && microdnf clean all \
+    && rm -rf /var/cache/yum
+USER 1001
+
 # Copy application distribution (app JAR + dependency JARs only)
 COPY --from=builder /build/app/build/install/app/lib /app/lib
 
