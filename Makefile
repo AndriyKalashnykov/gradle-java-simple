@@ -13,9 +13,9 @@ NO_CACHE    := --no-configuration-cache
 # renovate: datasource=github-releases depName=google/google-java-format extractVersion=^v(?<version>.*)$
 GJF_VERSION := 1.28.0
 # renovate: datasource=docker depName=minlag/mermaid-cli
-MERMAID_CLI_VERSION := 11.14.0
+MERMAID_CLI_VERSION := 11.15.0
 # renovate: datasource=docker depName=plantuml/plantuml
-PLANTUML_VERSION := 1.2026.2
+PLANTUML_VERSION := 1.2026.3
 
 CURRENTTAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
