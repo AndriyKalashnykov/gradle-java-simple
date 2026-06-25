@@ -19,7 +19,7 @@ Source: [`docs/diagrams/context.puml`](docs/diagrams/context.puml) — C4-PlantU
 |-----------|------------|
 | Language | Java 21 |
 | JDK | IBM Semeru OpenJ9 (`semeru-openj9-21.0.10+7`) |
-| Build | Gradle 9.4.1 (via `./gradlew`) |
+| Build | Gradle 9.6.0 (via `./gradlew`) |
 | Toolchain | [mise](https://mise.jdx.dev/) — manages Java, Node, hadolint, act, gitleaks, trivy (single `.mise.toml`) |
 | Test | JUnit Jupiter |
 | Coverage | JaCoCo (60% threshold) |
