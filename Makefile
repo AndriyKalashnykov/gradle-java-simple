@@ -15,7 +15,7 @@ GJF_VERSION := 1.28.0
 # renovate: datasource=docker depName=minlag/mermaid-cli
 MERMAID_CLI_VERSION := 11.15.0
 # renovate: datasource=docker depName=plantuml/plantuml
-PLANTUML_VERSION := 1.2026.3
+PLANTUML_VERSION := 1.2026.6
 # renovate: datasource=docker depName=catthehacker/ubuntu versioning=loose
 ACT_UBUNTU_VERSION := act-latest-20260622
 
