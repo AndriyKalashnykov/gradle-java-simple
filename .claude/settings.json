@@ -5,7 +5,6 @@
   },
   "permissions": {
     "allow": [
-      "*",
       "Bash(git ls-remote:*)",
       "Bash(gh run:*)",
       "WebFetch(domain:hub.docker.com)",

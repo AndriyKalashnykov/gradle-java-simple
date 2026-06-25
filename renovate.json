@@ -20,7 +20,7 @@
   ],
   "prConcurrentLimit": 50,
   "prHourlyLimit": 0,
-  "platformAutomerge": true,
+  "platformAutomerge": false,
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
@@ -79,9 +79,6 @@
     },
     {
       "description": "Group Makefile tool version pins (custom regex)",
-      "matchManagers": [
-        "custom.regex"
-      ],
       "matchFileNames": [
         "Makefile"
       ],
@@ -89,9 +86,6 @@
     },
     {
       "description": "Group .mise.toml tool pins (custom regex)",
-      "matchManagers": [
-        "custom.regex"
-      ],
       "matchFileNames": [
         ".mise.toml"
       ],
@@ -127,6 +121,26 @@
         "pinDigest"
       ],
       "groupName": "Docker dependencies"
+    },
+    {
+      "description": "Makefile docker pins (PLANTUML_VERSION, MERMAID_CLI_VERSION) are tag-only with no digest; do not let config:best-practices pinDigests generate an isPinDigest update that collides with — and silently drops — the version bump in the shared Docker group.",
+      "matchFileNames": [
+        "Makefile"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "pinDigests": false
+    },
+    {
+      "description": "The Dockerfile gradle builder image is already digest-pinned, so a standalone digest-refresh update collides with — and silently drops — its version bump. Disable the digest-only update; the version bump carries its own fresh digest.",
+      "matchPackageNames": [
+        "gradle"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
     }
   ]
 }

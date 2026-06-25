@@ -14,7 +14,7 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 |---------|-------------|
 | `make help` | List available tasks |
 | `make deps` | Verify required build dependencies are available |
-| `make deps-install` | Install Java via mise (Gradle comes from the wrapper) |
+| `make deps-install` | Install the full mise-pinned toolchain — Java, Node, hadolint, act, gitleaks, trivy (Gradle comes from the wrapper) |
 | `make deps-check` | Show required tools and installation status |
 | `make build` | Build project (compile only, no tests; depends on `deps`) |
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
@@ -28,7 +28,8 @@ All commands use `make` as the primary interface (wraps `./gradlew`):
 | `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, misconfigurations |
 | `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
 | `make diagrams-check` | Syntax-check PlantUML diagrams under `docs/diagrams/` |
-| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check) |
+| `make check-java-alignment` | Verify the Java major version agrees across `.mise.toml`, `build.gradle`, `Dockerfile` |
+| `make static-check` | Composite quality gate (check-java-alignment + format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check) |
 | `make ci-mirror-check` | Lint that the CI workflow's `run: make X` step sequences match Makefile reality (catches divergence like missing `coverage-generate` between filtered `test` and `coverage-check`) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
@@ -86,7 +87,7 @@ Single-module Gradle project (`app/`) with standard Java layout:
 
 ## Key Configuration
 
-- **Java 21** (IBM Semeru OpenJ9 `semeru-openj9-21.0.10+7` via mise / `.mise.toml`, with toolchain auto-download via foojay-resolver). All binary tools (Java, Node, hadolint, act, gitleaks, trivy) are pinned in `.mise.toml` and installed via a single `mise install` — the only version constants left in the Makefile are `GJF_VERSION` (JAR), `MERMAID_CLI_VERSION` and `PLANTUML_VERSION` (Docker images), since mise does not manage those asset classes
+- **Java 21** (IBM Semeru OpenJ9 `semeru-openj9-21.0.10+7` via mise / `.mise.toml`, with toolchain auto-download via foojay-resolver). All binary tools (Java, Node, hadolint, act, gitleaks, trivy) are pinned in `.mise.toml` and installed via a single `mise install` — the only version constants left in the Makefile are `GJF_VERSION` (JAR), `MERMAID_CLI_VERSION` and `PLANTUML_VERSION` (Docker images), and `ACT_UBUNTU_VERSION` (the `act` runner image used by `ci-run`), since mise does not manage those asset classes
 - **JVM args for FIPS**: `-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3` (configured in `application` block; tests run with `-Dsemeru.fips=false`)
 - **Dependencies** managed via `gradle/libs.versions.toml` (Guava, JUnit Jupiter) and `gradle.properties` (Commons Lang, plugin versions)
 - **JaCoCo** minimum coverage: 60%
@@ -116,11 +117,11 @@ Configure push target with environment variables:
 
 GitHub Actions (`.github/workflows/ci.yml`):
 - **changes** job: `dorny/paths-filter` — sets `code` output to gate heavy jobs. Doc-only PRs (matching `**.md|docs/**|specs/**|LICENSE|.gitignore|.claudeignore|.claude/**|benchmarks/**|**.png|**.jpg|**.gif|**.svg`, with `CLAUDE.md` re-included) skip the rest of the pipeline; `ci-pass` reports green via `skipped ≠ failure`. Required-check pattern is portfolio-mandatory regardless of branch-protection system (Repository Rulesets / Classic BP).
-- **static-check** job: `make static-check` (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) — runs first (cheapest, fail-fast). `needs: [changes]`
+- **static-check** job: `make static-check` (check-java-alignment + format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check) — runs first (cheapest, fail-fast). `needs: [changes]`
 - **build** job: `make build`, `make run` — runs after static-check passes. `needs: [changes, static-check]`
 - **test** job: `make test`, `make coverage-check` — runs in parallel with build after static-check. `needs: [changes, static-check]`
 - **integration-test** job: `make integration-test` (`FIPSValidatorRunnerIT` subprocess suite) — runs in parallel with build/test after static-check. `needs: [changes, static-check]`
-- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test via `make image-smoke-test`, canonical two-build pattern with GHA cache). `push` (to `ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test`) and `cosign sign` (iterates every tag from `metadata-action`, signs by digest) are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Uses `${{ secrets.GITHUB_TOKEN }}` for GHCR login (no user-configured secrets needed); requires `id-token: write` for cosign keyless OIDC and `packages: write` for GHCR publish. `needs: [changes, build, test, integration-test]`
+- **docker** job: builds and scans the image on every push (Trivy image scan, smoke test via `make image-smoke-test`, canonical two-build pattern with GHA cache). `push` (to `ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test`) and `cosign sign` (iterates every tag from `metadata-action`, signs by digest) are tag-gated (`startsWith(github.ref, 'refs/tags/')`). Uses `${{ secrets.GITHUB_TOKEN }}` for GHCR login (no user-configured secrets needed); requires `id-token: write` for cosign keyless OIDC and `packages: write` for GHCR publish. `needs: [changes, static-check, build, test, integration-test]`
 - **ci-pass** job: aggregate status gate (`if: always()`, `needs` all above including `changes`) — use this as the branch-protection required check
 - **concurrency**: superseded runs on the same branch are automatically cancelled
 - Toolchain install in CI: `jdx/mise-action@v4` in every job — single source of truth is `.mise.toml` (Java + Node + hadolint + gitleaks + trivy + act). `gradle/actions/setup-gradle@v6` provides Gradle build caching on top. No `actions/setup-java` — eliminates parallel pinning between `.mise.toml` and the workflow YAML.
@@ -160,21 +161,21 @@ Deferred upgrade items. Last full review: 2026-04-14 (via `/upgrade-analysis`). 
 
 ### Open
 
-- [ ] **FIPS profile hard expiry 2026-09-21** (~160 days) — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Needs a future Semeru release from IBM. Check: `make run` output for expiry warning. **Monitor monthly.**
+- [ ] **FIPS profile hard expiry 2026-09-21** (~88 days — now inside the 90-day window) — Semeru JDK FIPS profile `OpenJCEPlusFIPS.FIPS140-3` expires on this date. App will refuse to start after. Needs a future Semeru release from IBM. Check: `make run` output for expiry warning. **Monitor monthly; escalate as the date nears.**
 - [ ] **Gradle 10 compatibility** — ben-manes versions plugin triggers deprecation warning. Watch for plugin update. Check: `./gradlew dependencyUpdates --warning-mode all`.
-- [x] ~~**Wave 2 major action bumps**~~ — Applied 2026-04-14. `docker/metadata-action@v6`, `docker/build-push-action@v7`, `sigstore/cosign-installer@v4` (installs Cosign v3) all landed together. `make ci-run` verified clean through the non-tag-gated path; cosign sign itself still needs a real tag push to exercise fully (tracked in next-release checklist).
-- [x] ~~**Remove `"nvm"` from Renovate `enabledManagers`**~~ — Resolved 2026-04-14 via `/renovate`. Also added `.mise.toml` custom manager; dropped native `mise` manager to avoid duplicate-PR risk from datasource mismatch; inline `# renovate:` comments are the single source of truth for `.mise.toml` pins.
 - [ ] **SBOM / provenance opt-in** — docker job currently sets `sbom: false` + `provenance: false` per hardening decision. Revisit if SLSA L2 attestations become a compliance requirement; build-push-action v7 supports `provenance: mode=max`.
 - [ ] **Portfolio version skew audit** — run `/upgrade-analysis portfolio` against `~/projects/` to catch drift in `act`, `hadolint`, `gitleaks`, `trivy`, Java Semeru, Gradle, and GitHub Action SHAs across the 20+ repos.
-- [ ] **Java 25 LTS migration planning** — Java 25 LTS expected Sep 2025. Java 21 LTS supported through ~2031. Plan migration 2027–2028.
+- [ ] **Java 25 LTS migration planning** — Java 25 LTS released Sep 2025 (an LTS per Oracle's 17→21→25→29 cadence). Java 21 LTS supported through ~2031. Plan migration 2027–2028.
 - [ ] **`commons-lang3` decoy dependency** — declared only to give `make cve-check` something to scan (see inline comment in `app/build.gradle`). If real runtime deps are added, remove or move into a dedicated `cveOnly` configuration so it doesn't leak into the shipped classpath.
 - [ ] **Multi-arch Docker image** — amd64-only because IBM Semeru FIPS profile lacks certified arm64 variant as of 2026-04-14. Re-verify quarterly via `docker manifest inspect icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal`.
-- [ ] **`actions/cache@v4` deprecation warning (transitive via `aquasecurity/trivy-action`)** — CI emits `Node.js 20 actions are deprecated` annotation on every run. Pin is inside `aquasecurity/trivy-action@0.35.0`, not directly referenceable from our workflow. Real failure deadline: 2026-09-16 (Node 20 removed from runners). Fix depends on upstream `aquasecurity/trivy-action` bumping its internal `actions/cache` pin — monitor their release notes; Renovate will pick up a newer `trivy-action` when one ships.
+- [ ] **`actions/cache@v4` deprecation warning (transitive via `aquasecurity/trivy-action`)** — CI emits `Node.js 20 actions are deprecated` annotation on every run. Pin is inside `aquasecurity/trivy-action@0.36.0`, not directly referenceable from our workflow. Real failure deadline: 2026-09-16 (Node 20 removed from runners). Fix depends on upstream `aquasecurity/trivy-action` bumping its internal `actions/cache` pin — monitor their release notes; Renovate will pick up a newer `trivy-action` when one ships.
 - [ ] **GHCR image path relocated 2026-04-30** — moved from user-namespace `ghcr.io/andriykalashnykov/gradle-java-fips-test` to repo-namespace `ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test` (skill canonical pattern, GITHUB_TOKEN-publish-safe on user accounts). The pre-relocation v0.0.2 image still exists at the old path but is frozen — anyone pulling `:0.0.2`, `:0`, or `:latest` from the old path will see the pre-relocation image forever. Consumers should update pulls to the new path; consider deleting the old GHCR package from the user account UI once external consumers are confirmed migrated.
 
 ### Resolved
 
 - [x] ~~**SDKMAN → mise migration**~~ — Completed 2026-04-14. All binary toolchain (Java, Node, hadolint, act, gitleaks, trivy) pinned in `.mise.toml` with Renovate annotations. `.nvmrc` dropped.
+- [x] ~~**Wave 2 major action bumps**~~ — Applied 2026-04-14. `docker/metadata-action@v6`, `docker/build-push-action@v7`, `sigstore/cosign-installer@v4` (installs Cosign v3) all landed together. `make ci-run` verified clean through the non-tag-gated path; cosign sign itself still needs a real tag push to exercise fully (tracked in next-release checklist).
+- [x] ~~**Remove `"nvm"` from Renovate `enabledManagers`**~~ — Resolved 2026-04-14 via `/renovate`. Also added `.mise.toml` custom manager; dropped native `mise` manager to avoid duplicate-PR risk from datasource mismatch; inline `# renovate:` comments are the single source of truth for `.mise.toml` pins.
 - [x] ~~**`JAVA_VER` not tracked by Renovate**~~ — Resolved 2026-04-14. Migrated from SDKMAN to mise; Java version pinned in `.mise.toml` with `datasource=java-version`.
 - [x] ~~**Integration-test layer**~~ — Added 2026-04-14. `FIPSValidatorRunnerIT` spawns-JVM subprocess with real flags; Gradle `integrationTest` source set + task; CI job + Makefile target.
 - [x] ~~**Docker image hardening**~~ — 2026-04-14. Trivy image scan + smoke test (incl. negative case) + cosign keyless OIDC signing + GHA cache + two-build pattern.

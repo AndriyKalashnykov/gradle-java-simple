@@ -16,6 +16,8 @@ GJF_VERSION := 1.28.0
 MERMAID_CLI_VERSION := 11.15.0
 # renovate: datasource=docker depName=plantuml/plantuml
 PLANTUML_VERSION := 1.2026.3
+# renovate: datasource=docker depName=catthehacker/ubuntu versioning=loose
+ACT_UBUNTU_VERSION := act-latest-20260622
 
 CURRENTTAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 
@@ -57,7 +59,8 @@ deps-check:
 
 #clean: @ Clean build artifacts
 clean:
-	@$(GRADLE) clean && rm -rf build app/build
+	-@$(GRADLE) clean
+	@rm -rf build app/build
 
 #build: @ Build project (compile only, no tests)
 build: deps
@@ -235,8 +238,23 @@ ci-mirror-check:
 	echo ""; \
 	echo "ci-mirror-check passed."
 
-#static-check: @ Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check)
-static-check: format-check lint secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check
+#check-java-alignment: @ Verify the Java major version agrees across .mise.toml, build.gradle, Dockerfile
+check-java-alignment:
+	@set -euo pipefail; \
+	mise=$$(grep -E '^java[[:space:]]*=' .mise.toml | sed -E 's/.*openj9-([0-9]+).*/\1/'); \
+	gradle=$$(grep -oE 'JavaLanguageVersion\.of\([0-9]+\)' app/build.gradle | grep -oE '[0-9]+' | head -1); \
+	djdk=$$(grep -oE 'jdk[0-9]+' Dockerfile | grep -oE '[0-9]+' | head -1); \
+	djre=$$(grep -oE 'open-[0-9]+-jre' Dockerfile | grep -oE '[0-9]+' | head -1); \
+	echo "  .mise.toml=$$mise  build.gradle=$$gradle  Dockerfile(jdk)=$$djdk  Dockerfile(jre)=$$djre"; \
+	rc=0; for v in "$$gradle" "$$djdk" "$$djre"; do [ "$$v" = "$$mise" ] || rc=1; done; \
+	if [ "$$rc" -ne 0 ]; then \
+		echo "  ✗ Java major mismatch — all must equal .mise.toml ($$mise). Bump them in lockstep (the 21→25 migration)."; \
+		exit 1; \
+	fi; \
+	echo "  ✓ Java major ($$mise) aligned across .mise.toml, build.gradle, Dockerfile."
+
+#static-check: @ Composite quality gate (java-alignment + format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check)
+static-check: check-java-alignment format-check lint secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check
 	@echo "Static check passed."
 
 #test: @ Run FIPS validator tests (FIPSValidatorTest only)
@@ -309,28 +327,29 @@ image-build-run: image-build image-run
 image-smoke-test: deps-docker
 	@set -euo pipefail; \
 	IMG="$${IMAGE:-$(DOCKER_IMAGE)}"; \
+	log=$$(mktemp); logneg=$$(mktemp); \
+	trap 'rm -f "$$log" "$$logneg"' EXIT INT TERM; \
 	echo "=== Smoke test: default entrypoint (FIPS flags baked in) ==="; \
 	set -o pipefail; \
-	docker run --rm --name smoke-test "$$IMG" | tee smoke.log; \
-	grep -q '=== FIPS Validator Runner ===' smoke.log \
+	docker run --rm --name smoke-test "$$IMG" | tee "$$log"; \
+	grep -q '=== FIPS Validator Runner ===' "$$log" \
 		|| { echo "Missing header — runner did not start cleanly."; exit 1; }; \
-	grep -q '=== FIPS Validator Runner Complete ===' smoke.log \
+	grep -q '=== FIPS Validator Runner Complete ===' "$$log" \
 		|| { echo "Missing footer — runner exited early."; exit 1; }; \
-	grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' smoke.log \
+	grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' "$$log" \
 		|| { echo "Missing status line — getFIPSStatus() not reached."; exit 1; }; \
-	grep -q 'Security Providers:' smoke.log \
+	grep -q 'Security Providers:' "$$log" \
 		|| { echo "Missing providers section — printFIPSProviders() not reached."; exit 1; }; \
-	grep -q 'OpenJCEPlusFIPS' smoke.log \
+	grep -q 'OpenJCEPlusFIPS' "$$log" \
 		|| { echo "Missing OpenJCEPlusFIPS provider — Semeru FIPS runtime regression or profile dropped?"; exit 1; }; \
 	echo "=== Smoke test: negative case (no FIPS flags) ==="; \
 	set -o pipefail; \
 	docker run --rm --name smoke-test-neg \
 		--entrypoint java "$$IMG" \
-		-cp '/app/lib/*' org.example.FIPSValidatorRunner | tee smoke-neg.log; \
-	grep -q 'Status: FIPS mode is DISABLED' smoke-neg.log \
+		-cp '/app/lib/*' org.example.FIPSValidatorRunner | tee "$$logneg"; \
+	grep -q 'Status: FIPS mode is DISABLED' "$$logneg" \
 		|| { echo "Negative case: expected DISABLED without -Dsemeru.fips flag, but got something else."; exit 1; }; \
-	echo "Smoke tests passed."; \
-	rm -f smoke.log smoke-neg.log
+	echo "Smoke tests passed."
 
 #image-push: @ Push Docker image to registry
 image-push: image-build
@@ -386,16 +405,27 @@ ci-run: deps-act
 	@# omits that field and the action errors. See /ci-workflow §"Local CI with act".
 	@# Pass secret NAMES only (no =VALUE) so act reads values from env —
 	@# avoids leaking credentials in `ps aux` output.
+	@# Auto-derive GITHUB_TOKEN from gh so a cold `mise install` under act can
+	@# authenticate (avoids the 60-req/h anonymous GitHub API limit → 403 on
+	@# aqua/github-releases backends). Pass secret NAMES only (no =VALUE) so act
+	@# reads values from env — never leaks credentials in `ps aux`.
+	@# Isolated mktemp artifact dir + random port so concurrent `make ci-run`
+	@# invocations (multi-session) don't collide on a host-global path/port.
 	@evt=$$(mktemp /tmp/act-push-event.XXXXXX.json); \
+	artifacts=$$(mktemp -d -t act-artifacts.XXXXXX); \
+	trap 'rm -f "$$evt"; rm -rf "$$artifacts"' EXIT INT TERM; \
 	printf '{"ref":"refs/heads/main","repository":{"default_branch":"main","name":"$(APP_NAME)","full_name":"andriykalashnykov/$(APP_NAME)"}}' >"$$evt"; \
+	if [ -z "$${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then export GITHUB_TOKEN=$$(gh auth token 2>/dev/null || true); fi; \
 	act push --container-architecture linux/amd64 \
-		--artifact-server-path /tmp/act-artifacts \
+		-P ubuntu-latest=catthehacker/ubuntu:$(ACT_UBUNTU_VERSION) \
+		--artifact-server-path "$$artifacts" \
+		--artifact-server-port "$$(shuf -i 40000-59999 -n 1)" \
 		--eventpath "$$evt" \
 		--var ACT=true \
+		$$([ -n "$${GITHUB_TOKEN:-}" ] && echo "--secret GITHUB_TOKEN") \
 		$$([ -n "$$NVD_API_KEY" ] && echo "--secret NVD_API_KEY") \
 		$$([ -n "$$OSS_INDEX_USER" ] && echo "--secret OSS_INDEX_USER") \
-		$$([ -n "$$OSS_INDEX_TOKEN" ] && echo "--secret OSS_INDEX_TOKEN"); \
-	rc=$$?; rm -f "$$evt"; exit $$rc
+		$$([ -n "$$OSS_INDEX_TOKEN" ] && echo "--secret OSS_INDEX_TOKEN")
 
 #ci-docker: @ Run full CI pipeline including Docker build
 ci-docker: ci image-build
@@ -424,7 +454,7 @@ tmux-session:
 	@if [ -n "$$TMUX" ]; then tmux switch-client -t gradle-fips-test; else tmux attach-session -t gradle-fips-test; fi
 
 .PHONY: help deps deps-install deps-check clean build format format-check lint \
-	secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check static-check test integration-test run \
+	secrets trivy-fs mermaid-lint diagrams-check ci-mirror-check check-java-alignment static-check test integration-test run \
 	cve-check cve-db-update cve-db-purge \
 	coverage-generate coverage-check coverage-open \
 	deps-hadolint deps-gitleaks deps-trivy deps-docker \

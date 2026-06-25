@@ -3,12 +3,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://app.renovatebot.com/dashboard#github/AndriyKalashnykov/gradle-java-simple)
 
-# Gradle Java FIPS Validation Project
+# FIPS 140-3 Validation for IBM Semeru JDK 21
 
-A Gradle-based Java 21 project that validates [FIPS 140-3](https://csrc.nist.gov/projects/cryptographic-module-validation-program) compliance using IBM Semeru JDK. It detects FIPS mode by inspecting JDK system properties, JCE crypto policy, and registered security providers.
+A **Gradle** / **Java 21** reference check that validates [FIPS 140-3](https://csrc.nist.gov/projects/cryptographic-module-validation-program) compliance on the **IBM Semeru** JDK — detecting FIPS mode via JDK system properties, JCE crypto policy, and registered security providers. Ships as a **Trivy**- and **cosign**-hardened **UBI9 Docker image**, with **integration tests** exercising the runner under real `-Dsemeru.fips` flags, **gitleaks** secret scanning, and a **mise**-pinned toolchain kept current by **Renovate** in **GitHub Actions** CI.
 
 <p align="center">
-  <img src="docs/diagrams/out/context.png" alt="Gradle Java FIPS Validation — System Context (C4)" width="520">
+  <img src="docs/diagrams/out/context.png" alt="Gradle Java FIPS Validation — System Context (C4)" width="330">
 </p>
 
 Source: [`docs/diagrams/context.puml`](docs/diagrams/context.puml) — C4-PlantUML. `make static-check` runs `diagrams-check` (PlantUML syntax) and `mermaid-lint` (inline Mermaid blocks in any `.md`); re-render the PNG via `docker run --rm -v $PWD:/work -w /work plantuml/plantuml -tpng docs/diagrams/context.puml -o out`.
@@ -34,7 +34,7 @@ Source: [`docs/diagrams/context.puml`](docs/diagrams/context.puml) — C4-PlantU
 ## Quick Start
 
 ```bash
-make deps-install # install Java via mise (first time only)
+make deps-install # install the full mise-pinned toolchain (first time only)
 make deps         # verify required build dependencies are available
 make build        # build the project
 make test         # run FIPS validator tests
@@ -51,7 +51,7 @@ make run          # run the application
 | [Java (IBM Semeru)](https://developer.ibm.com/languages/java/semeru-runtimes/) | 21.0.10+ | JDK runtime and compiler (installed by `make deps-install`) |
 | [Docker](https://docs.docker.com/get-docker/) | latest | Required for `image-*`, `ci-docker`, `trivy-fs`, `mermaid-lint` (optional for core build) |
 
-Install Java via mise (first time only):
+Install the full mise-pinned toolchain — Java, Node, hadolint, act, gitleaks, trivy (first time only):
 
 ```bash
 make deps-install
@@ -102,7 +102,7 @@ grep "^security.provider" /opt/java/openjdk/conf/security/java.security
 |--------|-------------|
 | `make help` | List available tasks |
 | `make deps` | Verify required build dependencies are available |
-| `make deps-install` | Install Java via mise (Gradle comes from the wrapper) |
+| `make deps-install` | Install the full mise-pinned toolchain — Java, Node, hadolint, act, gitleaks, trivy (Gradle comes from the wrapper) |
 | `make deps-check` | Show required tools and installation status |
 | `make build` | Build project (compile only, no tests) |
 | `make test` | Run FIPS validator tests (`FIPSValidatorTest` only) |
@@ -121,7 +121,8 @@ grep "^security.provider" /opt/java/openjdk/conf/security/java.security
 | `make trivy-fs` | Scan filesystem for vulnerabilities, secrets, and misconfigurations |
 | `make mermaid-lint` | Validate Mermaid diagrams in markdown files |
 | `make diagrams-check` | Syntax-check PlantUML diagrams under `docs/diagrams/` |
-| `make static-check` | Composite quality gate (format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check) |
+| `make check-java-alignment` | Verify the Java major version agrees across `.mise.toml`, `build.gradle`, `Dockerfile` |
+| `make static-check` | Composite quality gate (check-java-alignment + format-check + lint + secrets + trivy-fs + mermaid-lint + diagrams-check + ci-mirror-check) |
 | `make coverage-generate` | Run tests with coverage report |
 | `make coverage-check` | Verify code coverage meets minimum threshold (> 60%) |
 | `make coverage-open` | Open code coverage report in browser |
@@ -198,6 +199,17 @@ A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old work
 No user-configured secrets or variables are required. The `docker` job pushes to [GHCR](https://ghcr.io) at `ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test` using the auto-provided `GITHUB_TOKEN` (scoped via the job's `packages: write` permission). Cosign keyless signing uses OIDC via `id-token: write` and signs every tag emitted by `docker/metadata-action` (anchored to the manifest digest).
 
 `NVD_API_KEY` is not required by CI (no job invokes `make cve-check`). It's only needed locally when running `make cve-check` or `make ci-run` — in both cases it's read from the local environment. Request one at [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key).
+
+### Verifying image signatures
+
+Released images are signed with [cosign](https://github.com/sigstore/cosign) keyless OIDC (no long-lived keys). Verify a published tag against its GitHub Actions provenance:
+
+```bash
+cosign verify \
+  --certificate-identity-regexp "^https://github.com/AndriyKalashnykov/gradle-java-simple/\.github/workflows/ci\.yml@refs/tags/v.*$" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/andriykalashnykov/gradle-java-simple/gradle-java-fips-test:<tag>
+```
 
 [Renovate](https://docs.renovatebot.com/) keeps dependencies up to date with platform automerge enabled.
 

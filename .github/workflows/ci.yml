@@ -35,6 +35,10 @@ jobs:
           code:
             - '!(**.md|docs/**|specs/**|LICENSE|.gitignore|.claudeignore|.claude/**|benchmarks/**|**.png|**.jpg|**.gif|**.svg)'
             - 'CLAUDE.md'
+            # Re-include gated diagram sources: docs/** is excluded above, but
+            # docs/diagrams/*.puml is validated by `make diagrams-check` inside
+            # static-check — a .puml-only change must still trigger the pipeline.
+            - 'docs/diagrams/**/*.puml'
 
   static-check:
     needs: [changes]
@@ -142,10 +146,13 @@ jobs:
         build-scan-terms-of-use-url: 'https://gradle.com/help/legal-terms-of-use'
         build-scan-terms-of-use-agree: 'yes'
 
-    - name: Test (FIPS-focused)
+    # `make test` runs the FIPS-focused subset (FIPSValidatorTest only).
+    - name: Test
       run: make test
 
-    - name: Coverage report (full suite)
+    # coverage-generate runs the full suite (FIPSValidatorTest + AppTest) for
+    # the threshold check; ci-mirror-check guards this test→coverage sequence.
+    - name: Coverage report
       run: make coverage-generate
 
     - name: Verify coverage
