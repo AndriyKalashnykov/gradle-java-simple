@@ -36,8 +36,6 @@ USER 1001
 # Copy application distribution (app JAR + dependency JARs only)
 COPY --from=builder /build/app/build/install/app/lib /app/lib
 
-USER 1001
-
 # Set FIPS mode
 ENV JAVA_OPTS="-Dsemeru.fips=true -Dsemeru.customprofile=OpenJCEPlusFIPS.FIPS140-3"
 

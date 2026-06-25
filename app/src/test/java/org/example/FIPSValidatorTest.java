@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.security.Provider;
+import java.security.Security;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -126,5 +128,77 @@ class FIPSValidatorTest {
 
     assertEquals(validator1.isFIPSModeEnabled(), validator2.isFIPSModeEnabled());
     assertEquals(validator1.getFIPSStatus(), validator2.getFIPSStatus());
+  }
+
+  @Test
+  @DisplayName("isFIPSModeEnabled detects a registered FIPS-named security provider")
+  void isFIPSModeEnabledDetectsRegisteredFipsProvider() {
+    // Covers the final provider-scan branch (FIPSValidator: "any registered
+    // provider whose name contains 'fips'"). Force the crypto.policy branch
+    // above it to be skipped so this branch is the one that returns true.
+    Provider fake = new FakeFipsProvider();
+    String savedPolicy = Security.getProperty("crypto.policy");
+    try {
+      Security.setProperty("crypto.policy", "limited");
+      Security.addProvider(fake);
+      assertTrue(
+          fipsValidator.isFIPSModeEnabled(),
+          "A registered provider whose name contains 'fips' must enable FIPS mode");
+    } finally {
+      Security.removeProvider(fake.getName());
+      if (savedPolicy != null) {
+        Security.setProperty("crypto.policy", savedPolicy);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("isFIPSModeEnabled detects FIPS via crypto.policy=unlimited + FIPS provider")
+  void isFIPSModeEnabledDetectsUnlimitedPolicyWithFipsProvider() {
+    // Covers the crypto.policy=="unlimited" + FIPS-provider inner branch.
+    Provider fake = new FakeFipsProvider();
+    String savedPolicy = Security.getProperty("crypto.policy");
+    try {
+      Security.setProperty("crypto.policy", "unlimited");
+      Security.addProvider(fake);
+      assertTrue(fipsValidator.isFIPSModeEnabled());
+    } finally {
+      Security.removeProvider(fake.getName());
+      if (savedPolicy != null) {
+        Security.setProperty("crypto.policy", savedPolicy);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("printFIPSProviders flags a registered FIPS-named provider")
+  void printFIPSProvidersFlagsFipsProvider() {
+    // Covers the "[FIPS Provider Detected]" branch in printFIPSProviders().
+    Provider fake = new FakeFipsProvider();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    PrintStream originalOut = System.out;
+    try {
+      Security.addProvider(fake);
+      System.setOut(new PrintStream(outputStream));
+      fipsValidator.printFIPSProviders();
+    } finally {
+      System.setOut(originalOut);
+      Security.removeProvider(fake.getName());
+    }
+
+    String output = outputStream.toString();
+    assertTrue(output.contains("TestFIPSProvider"), "Registered provider must be listed");
+    assertTrue(
+        output.contains("[FIPS Provider Detected]"),
+        "printFIPSProviders must flag a provider whose name contains 'fips'");
+  }
+
+  /** Minimal stub provider whose name contains "fips" to exercise FIPS detection branches. */
+  private static final class FakeFipsProvider extends Provider {
+    private static final long serialVersionUID = 1L;
+
+    FakeFipsProvider() {
+      super("TestFIPSProvider", "1.0", "Stub provider for FIPS detection tests");
+    }
   }
 }
