@@ -336,8 +336,8 @@ image-smoke-test: deps-docker
 		|| { echo "Missing header — runner did not start cleanly."; exit 1; }; \
 	grep -q '=== FIPS Validator Runner Complete ===' "$$log" \
 		|| { echo "Missing footer — runner exited early."; exit 1; }; \
-	grep -qE 'Status: FIPS mode is (ENABLED|DISABLED)' "$$log" \
-		|| { echo "Missing status line — getFIPSStatus() not reached."; exit 1; }; \
+	grep -q 'Status: FIPS mode is ENABLED' "$$log" \
+		|| { echo "Default entrypoint bakes in -Dsemeru.fips flags — expected ENABLED but got non-ENABLED (FIPS profile regression/expiry?)."; exit 1; }; \
 	grep -q 'Security Providers:' "$$log" \
 		|| { echo "Missing providers section — printFIPSProviders() not reached."; exit 1; }; \
 	grep -q 'OpenJCEPlusFIPS' "$$log" \
