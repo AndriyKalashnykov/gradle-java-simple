@@ -193,6 +193,44 @@ class FIPSValidatorTest {
         "printFIPSProviders must flag a provider whose name contains 'fips'");
   }
 
+  @Test
+  @DisplayName("isFIPSModeEnabled stays false when semeru.customprofile lacks 'FIPS'")
+  void customProfileWithoutFipsDoesNotEnable() {
+    // Negative sub-branch: a custom profile is set but does NOT contain "FIPS",
+    // so the customprofile check must fall through (no other indicator present).
+    String saved = System.getProperty("semeru.customprofile");
+    try {
+      System.setProperty("semeru.customprofile", "SomeOtherProfile.v1");
+      assertFalse(
+          fipsValidator.isFIPSModeEnabled(),
+          "A customprofile without 'FIPS' must not enable FIPS mode");
+    } finally {
+      if (saved == null) {
+        System.clearProperty("semeru.customprofile");
+      } else {
+        System.setProperty("semeru.customprofile", saved);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("isFIPSModeEnabled stays false when crypto.policy is not 'unlimited'")
+  void cryptoPolicyNotUnlimitedDoesNotEnable() {
+    // Negative sub-branch: crypto.policy is set but not "unlimited", so the
+    // provider-scan inside that branch must be skipped (no FIPS provider here).
+    String saved = Security.getProperty("crypto.policy");
+    try {
+      Security.setProperty("crypto.policy", "limited");
+      assertFalse(
+          fipsValidator.isFIPSModeEnabled(),
+          "crypto.policy != 'unlimited' must not enable FIPS mode without a FIPS provider");
+    } finally {
+      if (saved != null) {
+        Security.setProperty("crypto.policy", saved);
+      }
+    }
+  }
+
   /** Minimal stub provider whose name contains "fips" to exercise FIPS detection branches. */
   private static final class FakeFipsProvider extends Provider {
     private static final long serialVersionUID = 1L;
