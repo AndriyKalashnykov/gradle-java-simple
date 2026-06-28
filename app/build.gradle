@@ -15,7 +15,7 @@ plugins {
 }
 
 checkstyle {
-    toolVersion = '13.6.0'
+    toolVersion = '13.7.0'
     configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
     ignoreFailures = false
     maxWarnings = 0
