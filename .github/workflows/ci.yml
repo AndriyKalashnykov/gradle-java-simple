@@ -181,7 +181,18 @@ jobs:
 
   docker:
     needs: [changes, static-check, build, test, integration-test]
-    if: ${{ !failure() && !cancelled() && needs.changes.outputs.code == 'true' }}
+    # Tag-only: the whole build+scan+smoke+publish pipeline runs at release-cut (v*) only.
+    # Publishing-job gate — explicit `== 'success'` on each prereq (a job that pushes+signs
+    # must not gate on `!failure()`, since a *skipped* prereq satisfies it and could publish
+    # an unbuilt/unscanned image). docker no longer reads changes.outputs.code directly; it
+    # stays transitively gated via the prereqs, which do.
+    if: >-
+      ${{ !cancelled()
+          && startsWith(github.ref, 'refs/tags/')
+          && needs.static-check.result == 'success'
+          && needs.build.result == 'success'
+          && needs.test.result == 'success'
+          && needs.integration-test.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
