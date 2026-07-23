@@ -187,10 +187,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, tags `
 | **build** | code change | `make build`, `make run` | `changes`, `static-check` |
 | **test** | code change | `make test`, `make coverage-check` | `changes`, `static-check` |
 | **integration-test** | code change | `make integration-test` (spawn-JVM subprocess suite) | `changes`, `static-check` |
-| **docker** | code change (push/sign tag-gated) | Build → Trivy scan → smoke test (incl. negative case) → (tag-only) push + cosign sign | `changes`, `build`, `test`, `integration-test` |
+| **docker** | tag push (`v*`) only | Build → Trivy image scan → smoke test (incl. negative case) → push + cosign sign | `changes`, `build`, `test`, `integration-test` |
 | **ci-pass** | all | Aggregate status gate (treats `skipped` as pass) | all above |
 
-A cheap `changes` detector job gates the heavy jobs via `dorny/paths-filter` — doc-only PRs skip CI work cleanly and `ci-pass` still reports green. `build`, `test`, and `integration-test` run in parallel after `static-check` passes. The `docker` job builds and scans the image on every push; `push` and `cosign sign` only fire on tag pushes (`v*`). The workflow also supports `workflow_call` for reuse from other workflows.
+A cheap `changes` detector job gates the heavy jobs via `dorny/paths-filter` — doc-only PRs skip CI work cleanly and `ci-pass` still reports green. `build`, `test`, and `integration-test` run in parallel after `static-check` passes. The `docker` job runs on **`v*` tag pushes only** — it builds, Trivy-scans, and FIPS-smoke-tests the image, then pushes to GHCR and cosign-signs; on PRs and `main` pushes it is skipped (`ci-pass` treats the skip as pass). Image build/scan/smoke coverage is therefore release-only. The workflow also supports `workflow_call` for reuse from other workflows.
 
 A weekly [cleanup workflow](.github/workflows/cleanup-runs.yml) deletes old workflow runs and caches (retains 7 days, minimum 5 runs).
 
