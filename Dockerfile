@@ -2,7 +2,7 @@
 
 # Build stage - compile the application. $BUILDPLATFORM = native runner arch,
 # maximizes build speed. Arch of the produced JARs is irrelevant (pure JVM).
-FROM --platform=$BUILDPLATFORM gradle:9.6.1-jdk21@sha256:b301b2336816c00c1e7c86dbe60f65317797bb9e97de2d46c86915d814f578a6 AS builder
+FROM --platform=$BUILDPLATFORM gradle:9.7.0-jdk21@sha256:86e1c174075288adf17b93172e07a4f018073735ae317134986c0ad55d0244db AS builder
 
 WORKDIR /build
 
