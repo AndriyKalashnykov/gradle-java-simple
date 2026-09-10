@@ -19,7 +19,7 @@ RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 # The runtime FROM defaults to $TARGETPLATFORM automatically — buildx's
 # `platforms: linux/amd64` in the docker job controls single-arch amd64
 # (Semeru FIPS profile has no certified arm64 variant as of 2026-04-14).
-FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:1a7ac966a2de5aedef1ab07a9212af33c630ff6119909b1b2f7525c76d26cef8
+FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:3e2abeedc4333a151f1406faa0ef9b6eee0d07ed200ac1b7c40a108e7973bb2b
 
 WORKDIR /app
 
