@@ -2,7 +2,7 @@
 
 # Build stage - compile the application. $BUILDPLATFORM = native runner arch,
 # maximizes build speed. Arch of the produced JARs is irrelevant (pure JVM).
-FROM --platform=$BUILDPLATFORM gradle:9.7.1-jdk21@sha256:66b1395131b2da51b3423d2d4ad34821786750f4f836952ce2bb6b38cdcf9a5e AS builder
+FROM --platform=$BUILDPLATFORM gradle:9.8.0-jdk21@sha256:3bad8c6f194befc7a1a9d4a6452aed83bdbb5a6d6f6752e5b0acbfeec52961b9 AS builder
 
 WORKDIR /build
 
@@ -19,7 +19,7 @@ RUN ./gradlew :app:installDist -x test -x checkstyleMain -x checkstyleTest
 # The runtime FROM defaults to $TARGETPLATFORM automatically — buildx's
 # `platforms: linux/amd64` in the docker job controls single-arch amd64
 # (Semeru FIPS profile has no certified arm64 variant as of 2026-04-14).
-FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:3e2abeedc4333a151f1406faa0ef9b6eee0d07ed200ac1b7c40a108e7973bb2b
+FROM icr.io/appcafe/ibm-semeru-runtimes:open-21-jre-ubi9-minimal@sha256:ed3d39bbe226d29b586c2bb09ab8168889b4470d38a5bf02880f1d733191ac3f
 
 WORKDIR /app
 
