@@ -11,7 +11,7 @@ NO_CACHE    := --no-configuration-cache
 # from the wrapper. Only JAR and Docker-image versions live here.
 
 # renovate: datasource=github-releases depName=google/google-java-format extractVersion=^v(?<version>.*)$
-GJF_VERSION := 1.36.1
+GJF_VERSION := 1.37.0
 # renovate: datasource=docker depName=minlag/mermaid-cli
 MERMAID_CLI_VERSION := 11.17.1
 # renovate: datasource=docker depName=plantuml/plantuml
