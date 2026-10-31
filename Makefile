@@ -13,7 +13,7 @@ NO_CACHE    := --no-configuration-cache
 # renovate: datasource=github-releases depName=google/google-java-format extractVersion=^v(?<version>.*)$
 GJF_VERSION := 1.36.1
 # renovate: datasource=docker depName=minlag/mermaid-cli
-MERMAID_CLI_VERSION := 11.17.1
+MERMAID_CLI_VERSION := 12.0.1
 # renovate: datasource=docker depName=plantuml/plantuml
 PLANTUML_VERSION := 1.2026.8
 # renovate: datasource=docker depName=catthehacker/ubuntu versioning=loose
