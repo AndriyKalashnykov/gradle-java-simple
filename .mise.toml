@@ -3,7 +3,7 @@
 java = "semeru-openj9-21.0.10+7"   # derive: mise ls-remote java | grep semeru-openj9-21 | tail -1
 
 # renovate: datasource=node-version depName=node
-node = "24"
+node = "26"
 
 # renovate: datasource=github-releases depName=hadolint/hadolint
 hadolint = "2.14.0"
